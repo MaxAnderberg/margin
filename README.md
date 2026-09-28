@@ -72,3 +72,7 @@ src/editor/theme.ts         Syntax colors and editor chrome
 src/styles.css              Typography, light/dark palettes, margin labels
 examples/welcome.md         A tour of what renders
 ```
+
+## License
+
+[MIT](LICENSE)

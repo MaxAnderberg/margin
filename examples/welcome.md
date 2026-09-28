@@ -1,5 +1,4 @@
 # Welcome to Margin
-Hello World
 
 Margin is a calm Markdown editor. Syntax fades away as you write and comes back **only on the line you're editing**. Try moving the cursor through this paragraph: *emphasis*, `inline code`, ~~strikethrough~~ and [links](https://tauri.app) all reveal their Markdown when you touch them.
 
