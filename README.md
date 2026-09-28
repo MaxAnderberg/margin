@@ -6,7 +6,19 @@ Markdown syntax fades away as you write and reappears only where your cursor is.
 
 Built with [Tauri 2](https://tauri.app). A small Rust backend handles files and the window, and a [CodeMirror 6](https://codemirror.net) front end does the editing.
 
-## Run it
+## Install (Linux)
+
+```sh
+./install.sh              # build a release and install for your user
+./install.sh --default    # …and make Margin the default app for .md files
+./install.sh --uninstall  # remove it again
+```
+
+This puts `margin` in `~/.local/bin` and adds a launcher entry and icon. You can then open Margin from your app launcher, run `margin notes.md` from a terminal, or right-click a `.md` file and open it with Margin. To update later, pull the latest code and run `./install.sh` again.
+
+macOS and Windows builds come from `npm run tauri build` on those systems. Each OS gets its own native package (`.dmg`, `.msi`).
+
+## Develop
 
 Requirements: Rust (stable), Node 20+, and on Linux `webkit2gtk-4.1`.
 

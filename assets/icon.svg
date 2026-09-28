@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2c2d33"/>
+      <stop offset="1" stop-color="#18191c"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="3"/>
+  <!-- margin rule -->
+  <line x1="340" y1="270" x2="340" y2="754" stroke="#82abdb" stroke-width="14" stroke-linecap="round"/>
+  <!-- heading label in the margin -->
+  <line x1="236" y1="352" x2="276" y2="352" stroke="#8d897e" stroke-width="22" stroke-linecap="round"/>
+  <!-- heading -->
+  <line x1="408" y1="352" x2="700" y2="352" stroke="#f1ede4" stroke-width="48" stroke-linecap="round"/>
+  <!-- body text -->
+  <g stroke="#b9b4a8" stroke-width="26" stroke-linecap="round">
+    <line x1="408" y1="480" x2="776" y2="480"/>
+    <line x1="408" y1="558" x2="752" y2="558"/>
+    <line x1="408" y1="636" x2="776" y2="636"/>
+    <line x1="408" y1="714" x2="610" y2="714"/>
+  </g>
+</svg>
