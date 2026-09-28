@@ -53,10 +53,17 @@ npm run tauri build                        # release binary + packages in src-ta
 
 You can also drop a `.md` file onto the window to open it.
 
+## Saving
+
+- **Autosave:** files save automatically about a second after you stop typing, and when you switch away from the window. `Ctrl+S` still works.
+- **Untitled documents** are kept as a recovery draft and come back the next time you open Margin.
+- **Changes made elsewhere:** if the file changes in another program and you have no unsaved edits, Margin reloads it when you return to the window. If you do have unsaved edits, Margin asks whether to keep your version or load the one on disk. Loading from disk is undoable with `Ctrl+Z`.
+- Saves are atomic (temp file + rename), keep the file's permissions, and write through symlinks.
+
 ## Layout
 
 ```
-src-tauri/src/lib.rs        Rust: file read/atomic write, CLI argument, plugins
+src-tauri/src/lib.rs        Rust: file read, conflict-checked atomic write, CLI argument (tests: cargo test)
 src/main.ts                 App wiring: files, shortcuts, theme, title
 src/editor/livePreview.ts   Hides syntax and renders widgets away from the cursor
 src/editor/commands.ts      Formatting commands

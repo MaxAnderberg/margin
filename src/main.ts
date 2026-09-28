@@ -60,6 +60,8 @@ function effectiveTheme(): "light" | "dark" {
 
 let currentPath: string | null = null;
 let savedDoc: Text = Text.empty;
+/** The file's modification time when we last read or wrote it. */
+let diskMtime: number | null = null;
 let dirty = false;
 
 const previewMode = new Compartment();
@@ -92,31 +94,177 @@ function updateStatus() {
 }
 
 let toastTimer: number | undefined;
-function toast(message: string, kind: "info" | "error" = "info") {
+function toast(message: string, kind: "info" | "error" = "info", ms?: number) {
   toastEl.textContent = message;
   toastEl.dataset.kind = kind;
   toastEl.classList.add("is-visible");
   clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => toastEl.classList.remove("is-visible"), kind === "error" ? 5000 : 1600);
+  toastTimer = window.setTimeout(
+    () => toastEl.classList.remove("is-visible"),
+    ms ?? (kind === "error" ? 5000 : 1600),
+  );
 }
 
 // ---------------------------------------------------------------- file operations
+//
+// Documents with a path autosave shortly after typing stops (and when the
+// window loses focus). Untitled documents are kept as a recovery draft that
+// is restored on the next launch. Before every write we check that nobody
+// else changed the file since we last saw it, so autosave never silently
+// overwrites edits made in another program.
 
 const MD_FILTER = [{ name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd", "txt"] }];
+const AUTOSAVE_DELAY = 1000;
+const DRAFT_DELAY = 400;
 
-async function confirmDiscard(): Promise<boolean> {
+interface FileContents {
+  text: string;
+  mtime: number | null;
+}
+type SaveError = { kind: "conflict" } | { kind: "io"; message: string };
+
+let autosaveTimer: number | undefined;
+let draftTimer: number | undefined;
+let conflictOpen = false;
+let reloading = false;
+let writesInFlight = 0;
+let saveChain: Promise<boolean> = Promise.resolve(true);
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  if (currentPath && !conflictOpen) autosaveTimer = window.setTimeout(() => persist(), AUTOSAVE_DELAY);
+}
+
+function saveDraftNow() {
+  clearTimeout(draftTimer);
+  if (currentPath) return;
+  const text = view.state.doc.toString();
+  store.set("draft", text.trim() ? text : null);
+}
+
+function scheduleDraft() {
+  clearTimeout(draftTimer);
+  draftTimer = window.setTimeout(saveDraftNow, DRAFT_DELAY);
+}
+
+/** Saves the current document. Saves run one at a time, in order. */
+function persist(opts: { path?: string; force?: boolean } = {}): Promise<boolean> {
+  clearTimeout(autosaveTimer);
+  const job = () => writeNow(opts.path ?? currentPath, opts.force ?? false);
+  saveChain = saveChain.then(job, job);
+  return saveChain;
+}
+
+async function writeNow(path: string | null, force: boolean): Promise<boolean> {
+  if (!path) return false;
+  const samePath = path === currentPath;
+  const doc = view.state.doc;
+  if (samePath && !force && doc.eq(savedDoc)) return true;
+  writesInFlight++;
+  try {
+    const mtime = await invoke<number>("write_file", {
+      path,
+      contents: doc.toString(),
+      expectedMtime: samePath ? diskMtime : null,
+      force: force || !samePath,
+    });
+    if (!samePath) {
+      if (!currentPath) store.set("draft", null);
+      currentPath = path;
+      store.set("lastFile", path);
+      view.dispatch({ effects: pathConfig.reconfigure(docPath.of(path)) });
+    }
+    diskMtime = mtime;
+    savedDoc = doc;
+    dirty = !view.state.doc.eq(savedDoc);
+    updateTitle();
+    return true;
+  } catch (err) {
+    const e = err as SaveError;
+    if (e?.kind === "conflict") return resolveConflict(path);
+    toast(e?.kind === "io" ? e.message : String(err), "error");
+    return false;
+  } finally {
+    writesInFlight--;
+  }
+}
+
+/** The file changed on disk while we had unsaved edits: let the user choose. */
+async function resolveConflict(path: string): Promise<boolean> {
+  if (conflictOpen) return false;
+  conflictOpen = true;
+  clearTimeout(autosaveTimer);
+  try {
+    const keepMine = await ask(
+      `“${fileName(path)}” was changed by another program while you were editing it.\n\n` +
+        `Keep your version (overwriting the file), or load the version on disk?`,
+      { title: "File changed on disk", kind: "warning", okLabel: "Keep mine", cancelLabel: "Load from disk" },
+    );
+    if (keepMine) return await writeNow(path, true);
+    const file = await invoke<FileContents>("read_file", { path });
+    replaceFromDisk(file);
+    toast("Loaded the version on disk. Press Ctrl+Z to get yours back.", "info", 5000);
+    return true;
+  } finally {
+    conflictOpen = false;
+  }
+}
+
+/** Swaps in text from disk as an undoable edit, keeping the cursor roughly in place. */
+function replaceFromDisk(file: FileContents) {
+  clearTimeout(autosaveTimer);
+  const head = Math.min(view.state.selection.main.head, file.text.length);
+  reloading = true;
+  try {
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: file.text },
+      selection: { anchor: head },
+      userEvent: "reload",
+    });
+  } finally {
+    reloading = false;
+  }
+  savedDoc = view.state.doc;
+  diskMtime = file.mtime;
+  dirty = false;
+  updateTitle();
+}
+
+/** Called when the window regains focus: pick up changes made elsewhere. */
+async function checkDisk() {
+  const path = currentPath;
+  // A write of our own in progress would look like an outside change.
+  if (!path || conflictOpen || writesInFlight > 0) return;
+  const mtime = await invoke<number | null>("file_mtime", { path });
+  if (mtime === null || mtime === diskMtime || path !== currentPath) return;
+  if (dirty) {
+    await persist(); // detects the conflict and asks
+  } else {
+    replaceFromDisk(await invoke<FileContents>("read_file", { path }));
+    toast("Reloaded: the file changed on disk");
+  }
+}
+
+/** Before switching documents: save a file, or confirm discarding an untitled draft. */
+async function readyToLeave(): Promise<boolean> {
   if (!dirty) return true;
-  return ask(`“${fileName(currentPath)}” has unsaved changes. Discard them?`, {
-    title: "Unsaved changes",
+  if (currentPath) return persist();
+  const discard = await ask("This untitled document has not been saved. Discard it?", {
+    title: "Unsaved document",
     kind: "warning",
     okLabel: "Discard",
     cancelLabel: "Keep editing",
   });
+  if (discard) store.set("draft", null);
+  return discard;
 }
 
-function loadDocument(text: string, path: string | null) {
+function loadDocument(text: string, path: string | null, mtime: number | null = null) {
+  clearTimeout(autosaveTimer);
+  clearTimeout(draftTimer);
   currentPath = path;
-  store.set("lastFile", path);
+  diskMtime = mtime;
+  if (path) store.set("lastFile", path);
   view.setState(createState(text, path));
   savedDoc = view.state.doc;
   dirty = false;
@@ -127,21 +275,21 @@ function loadDocument(text: string, path: string | null) {
 
 async function openPath(path: string) {
   try {
-    const text = await invoke<string>("read_file", { path });
-    loadDocument(text, path);
+    const file = await invoke<FileContents>("read_file", { path });
+    loadDocument(file.text, path, file.mtime);
   } catch (err) {
     toast(String(err), "error");
   }
 }
 
 async function openFile() {
-  if (!(await confirmDiscard())) return;
+  if (!(await readyToLeave())) return;
   const path = await openDialog({ multiple: false, directory: false, filters: MD_FILTER });
   if (typeof path === "string") await openPath(path);
 }
 
 async function newFile() {
-  if (!(await confirmDiscard())) return;
+  if (!(await readyToLeave())) return;
   loadDocument("", null);
 }
 
@@ -155,22 +303,9 @@ async function saveFile(saveAs = false): Promise<boolean> {
     if (!chosen) return false;
     path = /\.[^/]+$/.test(chosen) ? chosen : `${chosen}.md`;
   }
-  const doc = view.state.doc;
-  try {
-    await invoke("write_file", { path, contents: doc.toString() });
-  } catch (err) {
-    toast(String(err), "error");
-    return false;
-  }
-  const pathChanged = path !== currentPath;
-  currentPath = path;
-  store.set("lastFile", path);
-  savedDoc = doc;
-  dirty = !view.state.doc.eq(savedDoc);
-  if (pathChanged) view.dispatch({ effects: pathConfig.reconfigure(docPath.of(path)) });
-  updateTitle();
-  toast("Saved");
-  return true;
+  const ok = await persist({ path });
+  if (ok && !dirty) toast("Saved");
+  return ok;
 }
 
 // ---------------------------------------------------------------- view toggles
@@ -261,18 +396,21 @@ async function openLink(href: string) {
   } else if (/\.(md|markdown)(#.*)?$/i.test(href) && currentPath) {
     const dir = currentPath.slice(0, currentPath.lastIndexOf("/") + 1);
     const target = decodeURIComponent(new URL(href.replace(/#.*$/, ""), "file://" + dir).pathname);
-    if (await confirmDiscard()) await openPath(target);
+    if (await readyToLeave()) await openPath(target);
   }
 }
 
 const trackChanges = EditorView.updateListener.of((update) => {
   if (!update.docChanged) return;
+  updateStatus();
+  if (reloading) return;
   const nowDirty = !update.state.doc.eq(savedDoc);
   if (nowDirty !== dirty) {
     dirty = nowDirty;
     updateTitle();
   }
-  updateStatus();
+  if (currentPath) scheduleAutosave();
+  else scheduleDraft();
 });
 
 function codeLanguages(info: string) {
@@ -324,21 +462,48 @@ applyTheme();
 applyFontScale();
 systemDark.addEventListener("change", () => themePref === "system" && applyTheme());
 
+// Save on the way out. Untitled text is kept as a draft for next launch.
 appWindow.onCloseRequested(async (event) => {
-  if (!(await confirmDiscard())) event.preventDefault();
+  if (!currentPath) return saveDraftNow();
+  if (!dirty || (await persist())) return;
+  const close = await ask("Margin could not save your changes. Close anyway and lose them?", {
+    title: "Unsaved changes",
+    kind: "warning",
+    okLabel: "Close anyway",
+    cancelLabel: "Keep editing",
+  });
+  if (!close) event.preventDefault();
 });
+
+// Leaving the window saves; coming back picks up changes made elsewhere.
+window.addEventListener("blur", () => {
+  if (currentPath && dirty) persist();
+  else if (!currentPath) saveDraftNow();
+});
+window.addEventListener("focus", () => void checkDisk());
 
 // Drop a Markdown file onto the window to open it.
 getCurrentWebview().onDragDropEvent(async (event) => {
   if (event.payload.type !== "drop") return;
   const path = event.payload.paths.find((p) => /\.(md|markdown|mdown|mkd|txt)$/i.test(p));
-  if (path && (await confirmDiscard())) await openPath(path);
+  if (path && (await readyToLeave())) await openPath(path);
 });
 
+// Open, in order of preference: the file named on the command line, an
+// untitled draft left from last time, or the last file you had open.
 (async () => {
   const launch = await invoke<string | null>("launch_file");
+  const draft = store.get("draft");
   const last = store.get("lastFile");
-  if (launch) await openPath(launch);
-  else if (last && (await invoke<boolean>("file_exists", { path: last }))) await openPath(last);
-  else loadDocument("", null);
+  if (launch) {
+    await openPath(launch);
+  } else if (draft) {
+    loadDocument("", null);
+    view.dispatch({ changes: { from: 0, insert: draft } });
+    toast("Restored your unsaved draft");
+  } else if (last && (await invoke<boolean>("file_exists", { path: last }))) {
+    await openPath(last);
+  } else {
+    loadDocument("", null);
+  }
 })();
