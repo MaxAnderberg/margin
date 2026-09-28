@@ -148,7 +148,7 @@ class TableWidget extends WidgetType {
 class MermaidWidget extends WidgetType {
   constructor(
     readonly source: string,
-    readonly theme: "light" | "dark",
+    readonly theme: string,
     readonly editing: boolean,
   ) {
     super();

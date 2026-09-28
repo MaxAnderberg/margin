@@ -20,14 +20,14 @@ import { colorTheme, docPath } from "./editor/context";
 import { enterBlockKeymap, headingLines, livePreview } from "./editor/livePreview";
 import { mermaidLanguage } from "./editor/mermaidLanguage";
 import { editorTheme, markdownHighlight } from "./editor/theme";
+import { openThemePicker } from "./themePicker";
+import { AUTO, applyThemeVars, resolveTheme } from "./themes";
 
 const appWindow = getCurrentWindow();
 const statusEl = document.getElementById("status")!;
 const toastEl = document.getElementById("toast")!;
 
 // ---------------------------------------------------------------- settings
-
-type ThemePref = "system" | "light" | "dark";
 
 const store = {
   get(key: string): string | null {
@@ -47,14 +47,14 @@ const store = {
   },
 };
 
-let themePref = (store.get("theme") as ThemePref) ?? "system";
+// Older versions stored "system" | "light" | "dark".
+const LEGACY_THEMES: Record<string, string> = { system: AUTO, light: "margin-light", dark: "margin-dark" };
+let themePref = store.get("theme") ?? AUTO;
+themePref = LEGACY_THEMES[themePref] ?? themePref;
 let fontScale = Number(store.get("fontScale")) || 1;
 const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
 
-function effectiveTheme(): "light" | "dark" {
-  if (themePref === "system") return systemDark.matches ? "dark" : "light";
-  return themePref;
-}
+const effectiveTheme = (pref = themePref) => resolveTheme(pref, systemDark.matches);
 
 // ---------------------------------------------------------------- document state
 
@@ -310,17 +310,23 @@ async function saveFile(saveAs = false): Promise<boolean> {
 
 // ---------------------------------------------------------------- view toggles
 
-function applyTheme() {
-  const theme = effectiveTheme();
-  document.documentElement.dataset.theme = theme;
-  if (view) view.dispatch({ effects: themeConfig.reconfigure(colorTheme.of(theme)) });
+function applyTheme(pref = themePref) {
+  const theme = effectiveTheme(pref);
+  applyThemeVars(theme);
+  if (view) view.dispatch({ effects: themeConfig.reconfigure(colorTheme.of(theme.id)) });
 }
 
-function cycleTheme() {
-  themePref = themePref === "system" ? "light" : themePref === "light" ? "dark" : "system";
-  store.set("theme", themePref);
-  applyTheme();
-  toast(`Theme: ${themePref}`);
+function chooseTheme() {
+  openThemePicker({
+    current: themePref,
+    preview: (id) => applyTheme(id),
+    commit: (id) => {
+      themePref = id;
+      store.set("theme", id);
+      applyTheme();
+    },
+    onClose: () => view.focus(),
+  });
 }
 
 function applyFontScale() {
@@ -369,7 +375,7 @@ const appKeymap = keymap.of([
   { key: "Mod-Shift-m", run: insertFence("mermaid", "flowchart LR\n  A[Idea] --> B[Draft] --> C[Done]") },
   ...[0, 1, 2, 3, 4, 5, 6].map((level) => ({ key: `Mod-${level}`, run: setHeading(level) })),
   { key: "Mod-/", run: run(toggleSourceMode) },
-  { key: "Mod-Shift-l", run: run(cycleTheme) },
+  { key: "Mod-Shift-l", run: run(chooseTheme) },
   { key: "Mod-=", run: run(() => zoom(0.1)) },
   { key: "Mod-+", run: run(() => zoom(0.1)) },
   { key: "Mod--", run: run(() => zoom(-0.1)) },
@@ -436,7 +442,7 @@ function createState(text: string, path: string | null) {
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
       previewMode.of(sourceMode ? headingLines : livePreview),
       pathConfig.of(docPath.of(path)),
-      themeConfig.of(colorTheme.of(effectiveTheme())),
+      themeConfig.of(colorTheme.of(effectiveTheme().id)),
       editorTheme,
       linkClicks,
       trackChanges,
@@ -460,7 +466,7 @@ window.addEventListener("blur", () => document.body.classList.remove("ctrl-held"
 
 applyTheme();
 applyFontScale();
-systemDark.addEventListener("change", () => themePref === "system" && applyTheme());
+systemDark.addEventListener("change", () => themePref === AUTO && applyTheme());
 
 // Save on the way out. Untitled text is kept as a draft for next launch.
 appWindow.onCloseRequested(async (event) => {

@@ -46,12 +46,16 @@ npm run tauri build                        # release binary + packages in src-ta
 | `Ctrl+Shift+M` | Mermaid diagram |
 | `Ctrl+F` | Find / replace |
 | `Ctrl+/` | Toggle source mode (raw Markdown) |
-| `Ctrl+Shift+L` | Theme: system → light → dark |
+| `Ctrl+Shift+L` | Choose a theme (arrows preview live, `Enter` keeps, `Esc` reverts) |
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+Shift+0` | Zoom in / out / reset |
 | `F11` | Full screen |
 | `Ctrl+click` | Open link |
 
 You can also drop a `.md` file onto the window to open it.
+
+## Themes
+
+Margin Light and Dark, GitHub Light and Dark, Catppuccin Latte and Mocha, Gruvbox Light and Dark, and Monokai. There is also **Auto**, which follows your system's light/dark setting. Mermaid diagrams take on each theme's colors. Themes are plain color sets in `src/themes.ts`, so adding one is a single entry.
 
 ## Saving
 

@@ -6,9 +6,9 @@ export const docPath = Facet.define<string | null, string | null>({
   combine: (values) => values[0] ?? null,
 });
 
-/** Effective color theme, so diagrams can match it. */
-export const colorTheme = Facet.define<"light" | "dark", "light" | "dark">({
-  combine: (values) => values[0] ?? "light",
+/** Id of the active color theme, so diagrams can match it. */
+export const colorTheme = Facet.define<string, string>({
+  combine: (values) => values[0] ?? "margin-light",
 });
 
 /** Dispatched to force live-preview decorations to rebuild. */
