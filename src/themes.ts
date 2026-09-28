@@ -82,10 +82,13 @@ export const THEMES: Theme[] = [
     kind: "light",
     colors: {
       bg: "#eff1f5", text: "#4c4f69", heading: "#8839ef", muted: "#8c8fa1", faintText: "#acb0be",
-      rule: "#ccd0da", accent: "#1e66f5", quote: "#6c6f85", codeBg: "#e6e9ef", panel: "#e6e9ef",
+      rule: "#ccd0da", accent: "#1e66f5", quote: "#5c5f77", codeBg: "#e6e9ef", panel: "#e6e9ef",
       selection: "rgba(114, 135, 253, 0.2)", danger: "#d20f39",
-      codeKeyword: "#8839ef", codeString: "#40a02b", codeNumber: "#fe640b",
-      codeFunction: "#1e66f5", codeType: "#df8e1d", codeProperty: "#179299",
+      // Green/peach/yellow darkened from the official Latte palette so code
+      // stays readable on the pale background (official values: #40a02b,
+      // #fe640b, #df8e1d fall below 3:1 contrast).
+      codeKeyword: "#8839ef", codeString: "#2f7d20", codeNumber: "#c24a0a",
+      codeFunction: "#1e66f5", codeType: "#a2650c", codeProperty: "#179299",
     },
   },
   {

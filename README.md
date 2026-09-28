@@ -24,10 +24,12 @@ Requirements: Rust (stable), Node 20+, and on Linux `webkit2gtk-4.1`.
 
 ```sh
 npm install
-npm run tauri dev                          # dev mode, hot reload
-npm run tauri dev -- -- path/to/file.md    # open a specific file
-npm run tauri build                        # release binary + packages in src-tauri/target/release
+npm run tauri dev                                    # dev mode, hot reload
+npm run tauri dev -- -- -- "$PWD/path/to/file.md"    # open a specific file
+npm run tauri build                                  # release binary + packages in src-tauri/target/release
 ```
+
+In dev mode the app runs from `src-tauri/`, so pass an absolute path. The three `--` get the file past npm, the Tauri CLI and cargo to the app itself.
 
 `margin notes.md` opens (or starts) that file. With no argument, Margin reopens the last file.
 
