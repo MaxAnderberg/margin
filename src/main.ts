@@ -4,7 +4,7 @@ import "./styles.css";
 
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { syntaxHighlighting } from "@codemirror/language";
+import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Text } from "@codemirror/state";
@@ -17,7 +17,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { insertFence, insertLink, setHeading, toggleInline, toggleTask } from "./editor/commands";
 import { colorTheme, docPath } from "./editor/context";
-import { headingLines, livePreview } from "./editor/livePreview";
+import { enterBlockKeymap, headingLines, livePreview } from "./editor/livePreview";
+import { mermaidLanguage } from "./editor/mermaidLanguage";
 import { editorTheme, markdownHighlight } from "./editor/theme";
 
 const appWindow = getCurrentWindow();
@@ -218,6 +219,7 @@ const run = (fn: () => unknown) => () => {
 };
 
 const appKeymap = keymap.of([
+  ...enterBlockKeymap,
   { key: "Mod-n", run: run(newFile) },
   { key: "Mod-o", run: run(openFile) },
   { key: "Mod-s", run: run(() => saveFile(false)) },
@@ -273,6 +275,11 @@ const trackChanges = EditorView.updateListener.of((update) => {
   updateStatus();
 });
 
+function codeLanguages(info: string) {
+  if (/^mermaid$/i.test(info.trim())) return mermaidLanguage;
+  return LanguageDescription.matchLanguageName(languages, info, true);
+}
+
 function createState(text: string, path: string | null) {
   return EditorState.create({
     doc: text,
@@ -282,7 +289,7 @@ function createState(text: string, path: string | null) {
       rectangularSelection(),
       EditorView.lineWrapping,
       EditorState.allowMultipleSelections.of(true),
-      markdown({ base: markdownLanguage, codeLanguages: languages }),
+      markdown({ base: markdownLanguage, codeLanguages }),
       syntaxHighlighting(markdownHighlight),
       search({ top: true }),
       highlightSelectionMatches(),

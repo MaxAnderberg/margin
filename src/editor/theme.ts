@@ -1,6 +1,7 @@
 import { HighlightStyle } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
+import { mermaidArrow } from "./mermaidLanguage";
 
 // Colors come from CSS variables (see styles.css) so light/dark switch instantly.
 
@@ -16,7 +17,7 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: t.heading, fontWeight: "680" },
 
   // Code blocks
-  { tag: [t.keyword, t.modifier, t.operatorKeyword, t.controlKeyword], color: "var(--code-keyword)" },
+  { tag: [t.keyword, t.modifier, t.operatorKeyword, t.controlKeyword], color: "var(--code-keyword)", fontWeight: "600" },
   { tag: [t.string, t.special(t.string), t.regexp], color: "var(--code-string)" },
   { tag: [t.number, t.bool, t.null, t.atom], color: "var(--code-number)" },
   { tag: [t.comment, t.lineComment, t.blockComment], color: "var(--muted)", fontStyle: "italic" },
@@ -24,6 +25,7 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: [t.typeName, t.className, t.namespace], color: "var(--code-type)" },
   { tag: [t.propertyName, t.attributeName], color: "var(--code-property)" },
   { tag: [t.meta, t.tagName], color: "var(--code-keyword)" },
+  { tag: mermaidArrow, color: "var(--accent)", fontWeight: "700" },
 ]);
 
 export const editorTheme = EditorView.theme({

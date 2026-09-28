@@ -1,6 +1,6 @@
 import { syntaxTree } from "@codemirror/language";
-import { EditorState, Range, StateField } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
+import { EditorSelection, EditorState, Range, StateField } from "@codemirror/state";
+import { Command, Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { marked } from "marked";
@@ -462,3 +462,69 @@ function buildHeadingLines(state: EditorState): DecorationSet {
   });
   return Decoration.set(decos, true);
 }
+
+// ---------------------------------------------------------------- keyboard entry
+
+// Rendered blocks (diagrams, tables) replace their source, so the cursor would
+// normally skip straight over them. These commands step *into* the block
+// instead, which reveals the source (and, for diagrams, a live preview below).
+
+const FENCE = /^\s*(`{3,}|~{3,})/;
+
+/** A rendered block that starts (`edge = "from"`) or ends (`"to"`) at `pos`. */
+function renderedBlockAt(state: EditorState, pos: number, edge: "from" | "to") {
+  const set = state.field(livePreview, false);
+  let found: { from: number; to: number } | null = null;
+  set?.between(pos, pos, (from, to, deco) => {
+    if (deco.spec.block && to > from && (edge === "from" ? from : to) === pos) {
+      found = { from, to };
+      return false;
+    }
+  });
+  return found as { from: number; to: number } | null;
+}
+
+/** Where the cursor lands: first line of content going forward, end of the last going back. */
+function entryPoint(state: EditorState, block: { from: number; to: number }, forward: boolean) {
+  const doc = state.doc;
+  const first = doc.lineAt(block.from);
+  const last = doc.lineAt(block.to);
+  const fenced = FENCE.test(first.text) && last.number > first.number;
+  if (forward) return (fenced ? doc.line(first.number + 1) : first).from;
+  const closed = fenced && /^\s*(`{3,}|~{3,})\s*$/.test(last.text) && last.number - 1 > first.number;
+  return (closed ? doc.line(last.number - 1) : last).to;
+}
+
+function enterRenderedBlock(forward: boolean, vertical: boolean): Command {
+  return (view) => {
+    const { state } = view;
+    const sel = state.selection;
+    if (sel.ranges.length > 1 || !sel.main.empty) return false;
+    const head = sel.main.head;
+    const line = state.doc.lineAt(head);
+    if (vertical) {
+      // Only when the motion would leave this line (long lines wrap visually).
+      const next = view.moveVertically(sel.main, forward);
+      if (forward ? next.head <= line.to : next.head >= line.from) return false;
+    } else if (head !== (forward ? line.to : line.from)) {
+      return false;
+    }
+    const pos = forward ? line.to + 1 : line.from - 1;
+    if (pos < 0 || pos > state.doc.length) return false;
+    const block = renderedBlockAt(state, pos, forward ? "from" : "to");
+    if (!block) return false;
+    view.dispatch({
+      selection: EditorSelection.cursor(entryPoint(state, block, forward)),
+      scrollIntoView: true,
+      userEvent: "select",
+    });
+    return true;
+  };
+}
+
+export const enterBlockKeymap = [
+  { key: "ArrowDown", run: enterRenderedBlock(true, true) },
+  { key: "ArrowUp", run: enterRenderedBlock(false, true) },
+  { key: "ArrowRight", run: enterRenderedBlock(true, false) },
+  { key: "ArrowLeft", run: enterRenderedBlock(false, false) },
+];
