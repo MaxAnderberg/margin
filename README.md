@@ -1,10 +1,29 @@
-# Margin
+<p align="center">
+  <img src="assets/icon.svg" width="112" alt="Margin logo">
+</p>
 
-A calm, keyboard-first Markdown editor for the desktop, inspired by Typora.
+<h1 align="center">Margin</h1>
+
+<p align="center">A calm, keyboard-first Markdown editor for the desktop, inspired by Typora.</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.png">
+    <img src="docs/screenshots/hero-light.png" alt="Margin editing a document: headings with H1–H3 labels in the left margin, inline formatting, lists and checkboxes">
+  </picture>
+</p>
 
 Markdown syntax fades away as you write and reappears only where your cursor is. Headings get a quiet level label (H1–H6) in the left margin. Mermaid diagrams, tables, images and task lists render inline.
 
 Built with [Tauri 2](https://tauri.app). A small Rust backend handles files and the window, and a [CodeMirror 6](https://codemirror.net) front end does the editing.
+
+### Diagrams that stay editable
+
+Mermaid code blocks render as diagrams. Click into one, or arrow into it, to edit the source with syntax highlighting while a live preview updates underneath.
+
+<p align="center">
+  <img src="docs/screenshots/diagram-editing.png" width="720" alt="Editing a Mermaid flowchart: highlighted source on top, the rendered diagram below">
+</p>
 
 ## Install (Linux)
 
@@ -59,6 +78,16 @@ You can also drop a `.md` file onto the window to open it.
 
 Margin Light and Dark, GitHub Light and Dark, Catppuccin Latte and Mocha, Gruvbox Light and Dark, and Monokai. There is also **Auto**, which follows your system's light/dark setting. Mermaid diagrams take on each theme's colors. Themes are plain color sets in `src/themes.ts`, so adding one is a single entry.
 
+<p align="center">
+  <img src="docs/screenshots/themes.png" alt="All nine themes side by side, each showing a colored heading, a code block and a table">
+</p>
+
+Press `Ctrl+Shift+L` to open the picker. Arrow keys preview each theme live and typing filters the list.
+
+<p align="center">
+  <img src="docs/screenshots/theme-picker.png" width="720" alt="The theme picker open over a document in Gruvbox Dark">
+</p>
+
 ## Saving
 
 - **Autosave:** files save automatically about a second after you stop typing, and when you switch away from the window. `Ctrl+S` still works.
@@ -73,10 +102,14 @@ src-tauri/src/lib.rs        Rust: file read, conflict-checked atomic write, CLI 
 src/main.ts                 App wiring: files, shortcuts, theme, title
 src/editor/livePreview.ts   Hides syntax and renders widgets away from the cursor
 src/editor/commands.ts      Formatting commands
-src/editor/mermaid.ts       Lazy, cached Mermaid rendering
+src/editor/mermaid.ts       Lazy, cached Mermaid rendering in the theme's colors
+src/editor/mermaidLanguage.ts  Syntax highlighting for Mermaid source
 src/editor/theme.ts         Syntax colors and editor chrome
-src/styles.css              Typography, light/dark palettes, margin labels
+src/themes.ts               The color themes
+src/themePicker.ts          Ctrl+Shift+L theme picker
+src/styles.css              Typography, layout, margin labels
 examples/welcome.md         A tour of what renders
+docs/screenshots/           Images used in this README
 ```
 
 ## License
