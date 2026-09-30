@@ -35,7 +35,14 @@ Mermaid code blocks render as diagrams. Click into one, or arrow into it, to edi
 
 This puts `margin` in `~/.local/bin` and adds a launcher entry and icon. You can then open Margin from your app launcher, run `margin notes.md` from a terminal, or right-click a `.md` file and open it with Margin. To update later, pull the latest code and run `./install.sh` again.
 
-macOS and Windows builds come from `npm run tauri build` on those systems. Each OS gets its own native package (`.dmg`, `.msi`).
+## Install (macOS and Windows)
+
+Download the installer from the [latest release](https://github.com/MaxAnderberg/margin/releases/latest): a universal `.dmg` for macOS (Apple Silicon and Intel), or an `.msi`/`.exe` for Windows. The apps aren't code-signed, so the first launch needs one extra click:
+
+- **macOS:** right-click Margin in Applications → **Open** → **Open**.
+- **Windows:** when SmartScreen appears, click **More info** → **Run anyway**.
+
+You can also build from source on those systems with `npm run tauri build` (see below).
 
 ## Develop
 
@@ -111,6 +118,16 @@ src/styles.css              Typography, layout, margin labels
 examples/welcome.md         A tour of what renders
 docs/screenshots/           Images used in this README
 ```
+
+## Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please) and GitHub Actions:
+
+1. Write commit messages (or squash-merge PR titles) as [Conventional Commits](https://www.conventionalcommits.org): `feat: …` for new features, `fix: …` for bug fixes. Commits like `docs:`, `ci:` and `chore:` don't trigger a release.
+2. release-please keeps a **Release PR** open on `main`. It bumps the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, and updates `CHANGELOG.md`.
+3. Merging the Release PR tags the version and creates the GitHub Release. The build workflow then attaches the macOS, Windows and Linux installers, which takes about 15 minutes.
+
+Every pull request also builds all three platforms, so a broken build shows up before it is merged.
 
 ## License
 
