@@ -2,13 +2,21 @@
 #
 # - Pull requests (and manual runs): build every platform and upload the
 #   installers as workflow artifacts, so each change is known to build.
-# - Tags like v0.2.0: build every platform and attach the installers to a
-#   draft GitHub Release. Review the draft, then publish it.
+# - Releases made by release-please (see release-please.yml) call this
+#   workflow with the new tag, and the installers are attached to that release.
+# - Tags pushed by hand (v0.2.0): build every platform and attach the
+#   installers to a draft GitHub Release. Review the draft, then publish it.
 name: Build
 
 on:
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing release tag to attach the installers to
+        type: string
+        required: true
   push:
     tags: ["v*"]
 
@@ -16,8 +24,9 @@ permissions:
   contents: write # create the draft release on tags
 
 concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
+  group: build-${{ inputs.tag || github.ref }}
+  # Superseded PR builds are cancelled; release builds always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -73,9 +82,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: ${{ matrix.args }}
-          # Only tag pushes create a (draft) release; other runs just build.
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: Margin ${{ github.ref_name }}
+          # Release builds attach to the tag's release; other runs just build.
+          tagName: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
+          releaseName: Margin ${{ inputs.tag || github.ref_name }}
           releaseBody: Download the installer for your system below. See the README for details.
           releaseDraft: true
 
