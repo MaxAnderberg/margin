@@ -6,6 +6,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { marked } from "marked";
 import { colorTheme, docPath, refreshPreview } from "./context";
 import { renderMermaid } from "./mermaid";
+import { isAbsolute, resolveRelative } from "../paths";
 
 // Typora/Obsidian-style live preview: Markdown syntax is hidden and rich
 // elements are rendered, except where the selection is, so the text you are
@@ -213,11 +214,10 @@ function resolveImageSrc(src: string, path: string | null): string {
   let abs: string;
   if (src.startsWith("file://")) {
     abs = decodeURIComponent(new URL(src).pathname);
-  } else if (src.startsWith("/")) {
+  } else if (isAbsolute(src)) {
     abs = src;
   } else if (path) {
-    const dir = path.slice(0, path.lastIndexOf("/") + 1);
-    abs = decodeURIComponent(new URL(src, "file://" + dir).pathname);
+    abs = resolveRelative(path, src);
   } else {
     return src;
   }
