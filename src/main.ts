@@ -20,6 +20,7 @@ import { colorTheme, docPath } from "./editor/context";
 import { enterBlockKeymap, headingLines, livePreview } from "./editor/livePreview";
 import { mermaidLanguage } from "./editor/mermaidLanguage";
 import { editorTheme, markdownHighlight } from "./editor/theme";
+import { baseName, resolveRelative } from "./paths";
 import { openThemePicker } from "./themePicker";
 import { AUTO, applyThemeVars, resolveTheme } from "./themes";
 
@@ -70,7 +71,7 @@ const themeConfig = new Compartment();
 let sourceMode = false;
 
 function fileName(path: string | null) {
-  return path ? path.slice(path.lastIndexOf("/") + 1) : "Untitled";
+  return path ? baseName(path) : "Untitled";
 }
 
 function updateTitle() {
@@ -400,8 +401,7 @@ async function openLink(href: string) {
   if (/^(https?:|mailto:)/i.test(href)) {
     openUrl(href).catch((err) => toast(String(err), "error"));
   } else if (/\.(md|markdown)(#.*)?$/i.test(href) && currentPath) {
-    const dir = currentPath.slice(0, currentPath.lastIndexOf("/") + 1);
-    const target = decodeURIComponent(new URL(href.replace(/#.*$/, ""), "file://" + dir).pathname);
+    const target = resolveRelative(currentPath, href.replace(/#.*$/, ""));
     if (await readyToLeave()) await openPath(target);
   }
 }
