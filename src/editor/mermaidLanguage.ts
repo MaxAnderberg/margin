@@ -53,13 +53,11 @@ function token(stream: StringStream, state: State): string | null {
   }
   if (stream.match(/^\d+(\.\d+)?%?/)) return "number";
 
-  const word = stream.match(/^[A-Za-z_][\w-]*/) as RegExpMatchArray | null;
+  // Hyphens only join word characters (`my-node`, `stateDiagram-v2`), so an
+  // arrow written without spaces (`A-->B`, `You->>Disk`) is left for the next token.
+  const word = stream.match(/^[A-Za-z_]\w*(?:-\w+)*/) as RegExpMatchArray | null;
   if (word) {
-    // A `-` inside a word may really be the start of an arrow (`A-->B`).
-    const text = word[0];
-    const cut = text.search(/--|-\.|->/);
-    if (cut > 0) stream.backUp(text.length - cut);
-    const id = cut > 0 ? text.slice(0, cut) : text;
+    const id = word[0];
     if (diagramWords.has(id)) return "keyword";
     if (statementWords.has(id)) return "keyword";
     if (directions.has(id)) return "atom";
