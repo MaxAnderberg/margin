@@ -31,8 +31,14 @@ struct FileContents {
 #[tauri::command]
 fn read_file(path: String) -> Result<FileContents, String> {
     match fs::read_to_string(&path) {
-        Ok(text) => Ok(FileContents { text, mtime: mtime_of(Path::new(&path)) }),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(FileContents { text: String::new(), mtime: None }),
+        Ok(text) => Ok(FileContents {
+            text,
+            mtime: mtime_of(Path::new(&path)),
+        }),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(FileContents {
+            text: String::new(),
+            mtime: None,
+        }),
         Err(e) => Err(format!("Could not read {path}: {e}")),
     }
 }
@@ -47,7 +53,9 @@ fn file_mtime(path: String) -> Option<u64> {
 enum SaveError {
     /// The file changed on disk since `expected_mtime`; nothing was written.
     Conflict,
-    Io { message: String },
+    Io {
+        message: String,
+    },
 }
 
 /// Saves `contents` to `path` and returns the file's new modification time.
@@ -60,8 +68,15 @@ enum SaveError {
 /// half-written document, keeps the original file's permissions, and writes
 /// through symlinks instead of replacing them.
 #[tauri::command]
-fn write_file(path: String, contents: String, expected_mtime: Option<u64>, force: bool) -> Result<u64, SaveError> {
-    let io = |what: &str, e: std::io::Error| SaveError::Io { message: format!("Could not {what} {path}: {e}") };
+fn write_file(
+    path: String,
+    contents: String,
+    expected_mtime: Option<u64>,
+    force: bool,
+) -> Result<u64, SaveError> {
+    let io = |what: &str, e: std::io::Error| SaveError::Io {
+        message: format!("Could not {what} {path}: {e}"),
+    };
 
     let requested = PathBuf::from(&path);
     let current = mtime_of(&requested);
@@ -72,7 +87,9 @@ fn write_file(path: String, contents: String, expected_mtime: Option<u64>, force
     let target = fs::canonicalize(&requested).unwrap_or(requested);
     let file_name = target
         .file_name()
-        .ok_or_else(|| SaveError::Io { message: format!("Invalid file path: {path}") })?
+        .ok_or_else(|| SaveError::Io {
+            message: format!("Invalid file path: {path}"),
+        })?
         .to_string_lossy()
         .into_owned();
     let tmp = target.with_file_name(format!(".{file_name}.margin-tmp"));
@@ -85,7 +102,9 @@ fn write_file(path: String, contents: String, expected_mtime: Option<u64>, force
         let _ = fs::remove_file(&tmp);
         return Err(io("save", e));
     }
-    mtime_of(&target).ok_or_else(|| SaveError::Io { message: format!("Saved {path} but could not read it back") })
+    mtime_of(&target).ok_or_else(|| SaveError::Io {
+        message: format!("Saved {path} but could not read it back"),
+    })
 }
 
 #[tauri::command]
@@ -110,7 +129,13 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(LaunchFile(resolve_launch_file()))
-        .invoke_handler(tauri::generate_handler![launch_file, read_file, file_mtime, write_file, file_exists])
+        .invoke_handler(tauri::generate_handler![
+            launch_file,
+            read_file,
+            file_mtime,
+            write_file,
+            file_exists
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Margin");
 }
@@ -128,7 +153,12 @@ mod tests {
         dir
     }
 
-    fn write(path: &Path, text: &str, expected: Option<u64>, force: bool) -> Result<u64, SaveError> {
+    fn write(
+        path: &Path,
+        text: &str,
+        expected: Option<u64>,
+        force: bool,
+    ) -> Result<u64, SaveError> {
         write_file(path.to_string_lossy().into(), text.into(), expected, force)
     }
 
@@ -153,10 +183,16 @@ mod tests {
         let file = scratch("conflict").join("note.md");
         fs::write(&file, "theirs").unwrap();
         let stale = Some(1); // an mtime from long before the file's real one
-        assert!(matches!(write(&file, "mine", stale, false), Err(SaveError::Conflict)));
+        assert!(matches!(
+            write(&file, "mine", stale, false),
+            Err(SaveError::Conflict)
+        ));
         assert_eq!(fs::read_to_string(&file).unwrap(), "theirs");
         // A file that appeared after we opened an empty path is also a conflict.
-        assert!(matches!(write(&file, "mine", None, false), Err(SaveError::Conflict)));
+        assert!(matches!(
+            write(&file, "mine", None, false),
+            Err(SaveError::Conflict)
+        ));
     }
 
     #[test]
@@ -187,9 +223,15 @@ mod tests {
 
         write(&link, "new", mtime_of(&link), false).ok().unwrap();
 
-        assert!(fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert!(fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         assert_eq!(fs::read_to_string(&real).unwrap(), "new");
-        assert_eq!(fs::metadata(&real).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(
+            fs::metadata(&real).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
         assert!(!dir.join(".real.md.margin-tmp").exists());
     }
 

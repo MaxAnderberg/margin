@@ -5,7 +5,7 @@ import type { SyntaxNode } from "@lezer/common";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { marked } from "marked";
 import { colorTheme, docPath, refreshPreview } from "./context";
-import { renderMermaid } from "./mermaid";
+import { cachedMermaid, renderMermaid } from "./mermaid";
 import { isAbsolute, resolveRelative } from "../paths";
 
 // Typora/Obsidian-style live preview: Markdown syntax is hidden and rich
@@ -179,9 +179,20 @@ class MermaidWidget extends WidgetType {
       el.innerHTML = `<div class="cm-md-mermaid-empty">Empty diagram</div>`;
       return;
     }
+    // Paint an already rendered diagram right away, so it is on screen before
+    // any edit can supersede this render.
+    const cached = cachedMermaid(this.source, this.theme);
+    if (cached) {
+      el.innerHTML = cached;
+      el.classList.remove("has-error");
+      return;
+    }
     renderMermaid(this.source, this.theme).then(
       (svg) => {
-        if (!current()) return;
+        // A newer edit supersedes this render, unless nothing is on screen
+        // yet: then this diagram is the "last good" one to keep showing.
+        // (Renders finish in order, so a newer one still paints over it.)
+        if (!current() && el.querySelector("svg")) return;
         el.innerHTML = svg;
         el.classList.remove("has-error");
         view.requestMeasure();

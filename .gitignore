@@ -26,3 +26,7 @@ dist-ssr
 # Rust / Tauri
 src-tauri/target
 src-tauri/gen/schemas
+
+# Test output
+playwright-report
+test-results

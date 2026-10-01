@@ -35,7 +35,14 @@ Mermaid code blocks render as diagrams. Click into one, or arrow into it, to edi
 
 This puts `margin` in `~/.local/bin` and adds a launcher entry and icon. You can then open Margin from your app launcher, run `margin notes.md` from a terminal, or right-click a `.md` file and open it with Margin. To update later, pull the latest code and run `./install.sh` again.
 
-macOS and Windows builds come from `npm run tauri build` on those systems. Each OS gets its own native package (`.dmg`, `.msi`).
+## Install (macOS and Windows)
+
+Download the installer from the [latest release](https://github.com/MaxAnderberg/margin/releases/latest): a universal `.dmg` for macOS (Apple Silicon and Intel), or an `.msi`/`.exe` for Windows. The apps aren't code-signed, so the first launch needs one extra click:
+
+- **macOS:** right-click Margin in Applications → **Open** → **Open**.
+- **Windows:** when SmartScreen appears, click **More info** → **Run anyway**.
+
+You can also build from source on those systems with `npm run tauri build` (see below).
 
 ## Develop
 
@@ -51,6 +58,23 @@ npm run tauri build                                  # release binary + packages
 In dev mode the app runs from `src-tauri/`, so pass an absolute path. The three `--` get the file past npm, the Tauri CLI and cargo to the app itself.
 
 `margin notes.md` opens (or starts) that file. With no argument, Margin reopens the last file.
+
+### Tests
+
+```sh
+npm run check                          # type-check + unit and pipeline tests (Vitest, ~1 s)
+npx playwright test                    # browser tests against the dev server
+npx playwright test --project=chromium # …Chromium only (WebKit needs Ubuntu/Debian libraries)
+cd src-tauri && cargo test             # Rust: saving, conflicts, permissions, symlinks
+```
+
+| Folder | What it covers |
+| --- | --- |
+| `tests/unit/` | Live preview (what's hidden where), formatting commands, Mermaid highlighting, paths, theme colors and contrast |
+| `tests/release/` | The release pipeline: matching version numbers, release-please settings, and how the workflows fit together |
+| `tests/e2e/` | The app in a real browser, with a simulated disk in place of the Rust backend: rendering, diagrams, shortcuts, autosave, conflicts, drafts, every theme, the theme picker |
+
+CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus `cargo fmt`, `clippy` and [actionlint](https://github.com/rhysd/actionlint) for the workflow files. The browser tests run in both Chromium and WebKit, the engine Margin uses on Linux and macOS. The first time you run them, use `npx playwright install chromium webkit`.
 
 ## Keyboard
 
@@ -111,6 +135,16 @@ src/styles.css              Typography, layout, margin labels
 examples/welcome.md         A tour of what renders
 docs/screenshots/           Images used in this README
 ```
+
+## Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please) and GitHub Actions:
+
+1. Write commit messages (or squash-merge PR titles) as [Conventional Commits](https://www.conventionalcommits.org): `feat: …` for new features, `fix: …` for bug fixes. Commits like `docs:`, `ci:` and `chore:` don't trigger a release.
+2. release-please keeps a **Release PR** open on `main`. It bumps the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, and updates `CHANGELOG.md`.
+3. Merging the Release PR tags the version and creates the GitHub Release. The build workflow then attaches the macOS, Windows and Linux installers, which takes about 15 minutes.
+
+Every pull request also builds all three platforms, so a broken build shows up before it is merged.
 
 ## License
 

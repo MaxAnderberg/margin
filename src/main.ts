@@ -456,6 +456,9 @@ const view = new EditorView({
   state: createState("", null),
 });
 
+// Lets the browser tests (tests/e2e) read the editor. Not in release builds.
+if (import.meta.env.DEV) (window as unknown as { __marginView: EditorView }).__marginView = view;
+
 // ---------------------------------------------------------------- startup
 
 // Links become clickable-looking while Ctrl/Cmd is held.

@@ -1,0 +1,36 @@
+# Automated releases with release-please.
+#
+# On every push to main, release-please keeps a "Release PR" up to date: it
+# bumps the version (package.json, Cargo.toml, tauri.conf.json) and writes
+# CHANGELOG.md from Conventional Commit messages (feat:, fix:, …).
+# Merging that PR tags the release and creates the GitHub Release; the build
+# workflow then attaches the macOS, Windows and Linux installers to it.
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+
+  # Releases created with the default token don't trigger other workflows,
+  # so the installers are built from here.
+  build:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit

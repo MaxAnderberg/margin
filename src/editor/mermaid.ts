@@ -56,6 +56,11 @@ function themeVariables(themeId: string) {
   };
 }
 
+/** An already rendered diagram, if there is one (lets widgets paint it synchronously). */
+export function cachedMermaid(source: string, themeId: string): string | undefined {
+  return cache.get(`${themeId}\n${source}`);
+}
+
 /** Renders a Mermaid diagram to an SVG string. Renders are serialized because
  *  mermaid keeps global state, and results are cached by theme + source. */
 export function renderMermaid(source: string, themeId: string): Promise<string> {
