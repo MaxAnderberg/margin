@@ -71,11 +71,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Run Rust tests
-        if: ${{ !startsWith(matrix.os, 'windows') }}
-        working-directory: src-tauri
-        run: cargo test
-
       - name: Build
         uses: tauri-apps/tauri-action@v0
         env:

@@ -59,6 +59,23 @@ In dev mode the app runs from `src-tauri/`, so pass an absolute path. The three 
 
 `margin notes.md` opens (or starts) that file. With no argument, Margin reopens the last file.
 
+### Tests
+
+```sh
+npm run check                          # type-check + unit and pipeline tests (Vitest, ~1 s)
+npx playwright test                    # browser tests against the dev server
+npx playwright test --project=chromium # …Chromium only (WebKit needs Ubuntu/Debian libraries)
+cd src-tauri && cargo test             # Rust: saving, conflicts, permissions, symlinks
+```
+
+| Folder | What it covers |
+| --- | --- |
+| `tests/unit/` | Live preview (what's hidden where), formatting commands, Mermaid highlighting, paths, theme colors and contrast |
+| `tests/release/` | The release pipeline: matching version numbers, release-please settings, and how the workflows fit together |
+| `tests/e2e/` | The app in a real browser, with a simulated disk in place of the Rust backend: rendering, diagrams, shortcuts, autosave, conflicts, drafts, every theme, the theme picker |
+
+CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus `cargo fmt`, `clippy` and [actionlint](https://github.com/rhysd/actionlint) for the workflow files. The browser tests run in both Chromium and WebKit, the engine Margin uses on Linux and macOS. The first time you run them, use `npx playwright install chromium webkit`.
+
 ## Keyboard
 
 | Keys | Action |
