@@ -1,7 +1,7 @@
 # Automated releases with release-please.
 #
 # On every push to main, release-please keeps a "Release PR" up to date: it
-# bumps the version (package.json, Cargo.toml, tauri.conf.json) and writes
+# bumps the version (package.json, Cargo.toml, Cargo.lock, tauri.conf.json) and writes
 # CHANGELOG.md from Conventional Commit messages (feat:, fix:, …).
 # Merging that PR tags the release and creates the GitHub Release; the build
 # workflow then attaches the macOS, Windows and Linux installers to it.
