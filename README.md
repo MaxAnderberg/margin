@@ -141,7 +141,7 @@ docs/screenshots/           Images used in this README
 Releases are automated with [release-please](https://github.com/googleapis/release-please) and GitHub Actions:
 
 1. Write commit messages (or squash-merge PR titles) as [Conventional Commits](https://www.conventionalcommits.org): `feat: …` for new features, `fix: …` for bug fixes. Commits like `docs:`, `ci:` and `chore:` don't trigger a release.
-2. release-please keeps a **Release PR** open on `main`. It bumps the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, and updates `CHANGELOG.md`.
+2. release-please keeps a **Release PR** open on `main`. It bumps the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, and updates `CHANGELOG.md`. A follow-up job runs `scripts/sync-cargo-lock.sh` to bring `src-tauri/Cargo.lock` along, since release-please can't update that file.
 3. Merging the Release PR tags the version and creates the GitHub Release. The build workflow then attaches the macOS, Windows and Linux installers, which takes about 15 minutes.
 
 Every pull request also builds all three platforms, so a broken build shows up before it is merged.
