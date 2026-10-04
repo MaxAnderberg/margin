@@ -2,7 +2,8 @@
 #
 # On every push to main, release-please keeps a "Release PR" up to date: it
 # bumps the version (package.json, Cargo.toml, tauri.conf.json) and writes
-# CHANGELOG.md from Conventional Commit messages (feat:, fix:, …).
+# CHANGELOG.md from Conventional Commit messages (feat:, fix:, …). A second
+# job then brings Cargo.lock along, which release-please can't update.
 # Merging that PR tags the release and creates the GitHub Release; the build
 # workflow then attaches the macOS, Windows and Linux installers to it.
 name: Release Please
@@ -21,9 +22,35 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
+
+  # release-please bumps Cargo.toml but can't select Margin's entry in
+  # Cargo.lock (its TOML updater doesn't support JSONPath filters), so set it
+  # on the Release PR branch here. Runs again whenever the PR is refreshed.
+  sync-cargo-lock:
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+      - name: Set Margin's version in Cargo.lock
+        run: scripts/sync-cargo-lock.sh "$(jq -r '."."' .release-please-manifest.json)"
+      - name: Commit to the Release PR
+        run: |
+          if git diff --quiet; then
+            echo "Cargo.lock is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: sync Cargo.lock with the release version"
+          git push
 
   # Releases created with the default token don't trigger other workflows,
   # so the installers are built from here.

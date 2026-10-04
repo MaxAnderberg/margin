@@ -2,11 +2,20 @@
 // release-please settings and how the GitHub workflows fit together.
 // (actionlint checks the workflow syntax itself; see .github/workflows/ci.yml.)
 
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
+
+// release-please's own updaters, so the tests do exactly what a Release PR will.
+const require = createRequire(import.meta.url);
+const { GenericJson } = require("release-please/build/src/updaters/generic-json.js");
+const { GenericToml } = require("release-please/build/src/updaters/generic-toml.js");
+const { Version } = require("release-please/build/src/version.js");
 
 const root = join(import.meta.dirname, "..", "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -19,13 +28,17 @@ const pkg = config.packages["."];
 const buildWorkflow = yaml(".github/workflows/build.yml");
 const releaseWorkflow = yaml(".github/workflows/release-please.yml");
 
-/** Resolves a simple `$.a.b` JSONPath (all that release-please is configured with here). */
-function select(data: unknown, path: string): unknown {
-  expect(path, "only simple $.a.b paths are supported").toMatch(/^\$(\.[\w-]+)+$/);
-  return path
-    .slice(2)
-    .split(".")
-    .reduce<unknown>((value, key) => (value as Record<string, unknown>)?.[key], data);
+/** Margin's own version in a Cargo.lock. */
+const lockVersion = (lock: string) =>
+  ((parseToml(lock) as any).package as { name: string; version: string }[]).find((p) => p.name === "margin")!.version;
+
+/** Runs release-please's updater for an extra-files entry; returns the new content and any warnings. */
+function applyUpdater(file: { type: string; path: string; jsonpath: string }, version: string) {
+  const warnings: string[] = [];
+  const logger = { warn: (m: unknown) => warnings.push(String(m)), info() {}, debug() {}, error() {}, trace() {} };
+  const Updater = file.type === "toml" ? GenericToml : GenericJson;
+  const content: string = new Updater(file.jsonpath, Version.parse(version)).updateContent(read(file.path), logger);
+  return { content, warnings };
 }
 
 describe("version numbers", () => {
@@ -39,11 +52,10 @@ describe("version numbers", () => {
     ["package-lock.json (root package)", () => json("package-lock.json").packages[""].version],
     ["src-tauri/tauri.conf.json", () => json("src-tauri/tauri.conf.json").version],
     ["src-tauri/Cargo.toml", () => (parseToml(read("src-tauri/Cargo.toml")) as any).package.version],
+    ["src-tauri/Cargo.lock (margin)", () => lockVersion(read("src-tauri/Cargo.lock"))],
   ])("%s matches the manifest", (_, version) => {
     expect(version()).toBe(manifestVersion);
   });
-  // Cargo.lock is not checked: release-please can't update it, and cargo
-  // rewrites margin's entry on the next build.
 });
 
 describe("release-please config", () => {
@@ -59,13 +71,26 @@ describe("release-please config", () => {
 
   const extraFiles: { type: string; path: string; jsonpath: string }[] = pkg["extra-files"];
   it.each(extraFiles.map((f) => [f.path, f] as const))(
-    "extra file %s exists and its path points at the current version",
+    "release-please's own updater bumps the version in %s",
     (_, file) => {
       expect(existsSync(join(root, file.path))).toBe(true);
-      const data = file.type === "toml" ? parseToml(read(file.path)) : json(file.path);
-      expect(select(data, file.jsonpath)).toBe(manifestVersion);
+      const { content, warnings } = applyUpdater(file, "9.9.9");
+      expect(warnings, "the updater would not modify anything").toEqual([]);
+      expect(content).not.toBe(read(file.path));
+      expect(content).toContain("9.9.9");
+      expect(content).not.toContain(manifestVersion);
     },
   );
+
+  it("does not list Cargo.lock, which its updaters can't select (scripts/sync-cargo-lock.sh handles it)", () => {
+    expect(extraFiles.map((f) => f.path)).not.toContain("src-tauri/Cargo.lock");
+    // The reason: a JSONPath filter for margin's entry matches nothing.
+    const { warnings } = applyUpdater(
+      { type: "toml", path: "src-tauri/Cargo.lock", jsonpath: "$.package[?(@.name=='margin')].version" },
+      "9.9.9",
+    );
+    expect(warnings.join()).toContain("No entries modified");
+  });
 
   it("releases on feat and fix commits", () => {
     const visible = pkg["changelog-sections"].filter((s: { hidden?: boolean }) => !s.hidden).map((s: { type: string }) => s.type);
@@ -98,9 +123,54 @@ describe("release workflow", () => {
     for (const name of passed) expect(Object.keys(inputs)).toContain(name);
   });
 
-  it("exposes the outputs the build job reads", () => {
+  it("exposes the outputs the build and sync jobs read", () => {
     const outputs = Object.keys(releaseWorkflow.jobs["release-please"].outputs);
-    expect(outputs).toEqual(expect.arrayContaining(["release_created", "tag_name"]));
+    expect(outputs).toEqual(expect.arrayContaining(["release_created", "tag_name", "prs_created", "pr"]));
+  });
+
+  it("syncs Cargo.lock on the Release PR branch whenever release-please creates or updates it", () => {
+    const job = releaseWorkflow.jobs["sync-cargo-lock"];
+    expect(job.needs).toBe("release-please");
+    expect(job.if).toContain("prs_created == 'true'");
+    const checkout = job.steps.find((s: { uses?: string }) => s.uses?.startsWith("actions/checkout"));
+    expect(checkout.with.ref).toContain("fromJSON(needs.release-please.outputs.pr).headBranchName");
+    const script: string = job.steps.map((s: { run?: string }) => s.run ?? "").join("\n");
+    expect(script).toContain("scripts/sync-cargo-lock.sh");
+    expect(script).toContain(".release-please-manifest.json");
+    expect(script).toContain("git push");
+  });
+});
+
+describe("scripts/sync-cargo-lock.sh", () => {
+  const run = (...args: string[]) =>
+    execFileSync("bash", [join(root, "scripts/sync-cargo-lock.sh"), ...args], { cwd: root, encoding: "utf8", stdio: "pipe" });
+  const copyOfLock = () => {
+    const path = join(mkdtempSync(join(tmpdir(), "margin-lock-")), "Cargo.lock");
+    copyFileSync(join(root, "src-tauri/Cargo.lock"), path);
+    return path;
+  };
+
+  it("changes only Margin's version line", () => {
+    const path = copyOfLock();
+    run("9.9.9", path);
+    const before = read("src-tauri/Cargo.lock").split("\n");
+    const after = readFileSync(path, "utf8").split("\n");
+    expect(after).toHaveLength(before.length);
+    const changed = after.filter((line, i) => line !== before[i]);
+    expect(changed).toEqual(['version = "9.9.9"']);
+    expect(lockVersion(readFileSync(path, "utf8"))).toBe("9.9.9");
+  });
+
+  it("is idempotent", () => {
+    const path = copyOfLock();
+    run("9.9.9", path);
+    const once = readFileSync(path, "utf8");
+    run("9.9.9", path);
+    expect(readFileSync(path, "utf8")).toBe(once);
+  });
+
+  it("rejects something that isn't a version", () => {
+    expect(() => run("not-a-version", copyOfLock())).toThrow(/Not a version/);
   });
 });
 
