@@ -1,0 +1,45 @@
+schema: spec-driven
+
+context: |
+  Margin is a desktop Markdown editor (Tauri 2 + CodeMirror 6) shipped on Linux, macOS and Windows.
+  Specs describe user-visible behavior: what the user sees, types and gets. Leave out implementation detail.
+  Every feature is keyboard-first: give each new action a shortcut and avoid clashing with the existing ones listed in README.md.
+  Designs must cover WebKitGTK, WKWebView and WebView2, and Windows paths.
+  Keep the UI calm and minimal (Typora-like): no persistent toolbars or chrome unless the user asks for it.
+
+rules:
+  proposal:
+    - State what is out of scope
+  tasks:
+    - Include tasks for unit and/or Playwright tests, and README updates when shortcuts or user-visible behavior change
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
