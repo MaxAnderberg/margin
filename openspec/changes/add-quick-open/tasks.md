@@ -8,9 +8,9 @@
 
 ## 2. Path display and fuzzy matching
 
-- [ ] 2.1 Add `relativeTo(folder, path)` and `displayFolder(path, home)` to `src/paths.ts`, handling both `/` and `\`. Cover POSIX, Windows and `~` shortening in `tests/unit/paths.test.ts`. Verify with `npm run check`.
-- [ ] 2.2 Add `src/fuzzy.ts` with `fuzzyMatch` (subsequence over space-separated parts, case-insensitive, returning a score and positions) and a `rankFiles` sort (score, then recency, then path). Verify with `npm run check`.
-- [ ] 2.3 Add `tests/unit/fuzzy.test.ts` covering each "Fuzzy filtering" scenario in the spec (`qkop`, case, file name beats folder, `ideas c`, no match, positions) plus the empty-query order (recents by recency, then folder files by path). Verify with `npm run check`.
+- [x] 2.1 Add `relativeTo(folder, path)` and `displayFolder(path, home)` to `src/paths.ts`, handling both `/` and `\`. Cover POSIX, Windows and `~` shortening in `tests/unit/paths.test.ts`. Verify with `npm run check`.
+- [x] 2.2 Add `src/fuzzy.ts` with `fuzzyMatch` (subsequence over space-separated parts, case-insensitive, returning a score and positions) and a `rankFiles` sort (score, then recency, then path). Verify with `npm run check`.
+- [x] 2.3 Add `tests/unit/fuzzy.test.ts` covering each "Fuzzy filtering" scenario in the spec (`qkop`, case, file name beats folder, `ideas c`, no match, positions) plus the empty-query order (recents by recency, then folder files by path). Verify with `npm run check`.
 
 ## 3. Shared palette shell
 
