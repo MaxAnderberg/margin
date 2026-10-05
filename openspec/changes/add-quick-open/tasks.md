@@ -19,16 +19,16 @@
 
 ## 4. Recent files
 
-- [ ] 4.1 Add a recent-files list in `src/main.ts`, stored as `margin.recentFiles` with a cap of 50, most recent first, and reading a corrupt value as empty. Push in `loadDocument()` and on save-as in `writeNow()`. Add a remove helper.
-- [ ] 4.2 Add Playwright tests for "Recent files history": remembered across a reload, save-as adds the file, deleted files are not shown. Verify with `npx playwright test --project=chromium`.
+- [x] 4.1 Add a recent-files list in `src/main.ts`, stored as `margin.recentFiles` with a cap of 50, most recent first, and reading a corrupt value as empty. Push in `loadDocument()` and on save-as in `writeNow()`. Add a remove helper.
+- [x] 4.2 Add Playwright tests for "Recent files history": remembered across a reload, save-as adds the file, deleted files are not shown. Verify with `npx playwright test --project=chromium`.
 
 ## 5. Quick open palette
 
-- [ ] 5.1 Add `src/quickOpen.ts` built on the palette shell. It shows recents straight away, then merges in the folder scan (deduped, current file excluded). It renders the name, a quiet location and highlighted matches, plus empty, no-match and truncated messages. Results that arrive after close are ignored.
-- [ ] 5.2 Wire up the open action: `readyToLeave()` → `file_exists` → `openPath()`. A missing file shows a toast and is removed from recents.
+- [x] 5.1 Add `src/quickOpen.ts` built on the palette shell. It shows recents straight away, then merges in the folder scan (deduped, current file excluded). It renders the name, a quiet location and highlighted matches, plus empty, no-match and truncated messages. Results that arrive after close are ignored.
+- [x] 5.2 Wire up the open action: `readyToLeave()` → `file_exists` → `openPath()`. A missing file shows a toast and is removed from recents.
 - [ ] 5.3 Bind `Mod-p` in `appKeymap`, and add a window-level `keydown` guard that prevents the default `Ctrl/Cmd+P` (print) outside the editor. Verify by hand in `npm run tauri dev` that `Ctrl+P` opens the palette and no print dialog appears.
-- [ ] 5.4 Add styles for entries (name, quiet location, match emphasis, message rows) in `src/styles.css`. Check by eye in one light and one dark theme.
-- [ ] 5.5 Add `tests/e2e/quickOpen.spec.ts` covering the spec scenarios: the shortcut opens the palette in normal and source mode, folder files are listed and non-Markdown and hidden files are not, recents come first, the current file is excluded, untitled shows recents only, the empty state, the truncated note, filtering and highlighting, ↑/↓ wrap, Enter/click opens, Esc restores editor focus, pending edits are saved before switching, "Keep editing" on an untitled draft, and a file deleted after listing shows an error. Verify with `npx playwright test --project=chromium`.
+- [x] 5.4 Add styles for entries (name, quiet location, match emphasis, message rows) in `src/styles.css`. Check by eye in one light and one dark theme.
+- [x] 5.5 Add `tests/e2e/quickOpen.spec.ts` covering the spec scenarios: the shortcut opens the palette in normal and source mode, folder files are listed and non-Markdown and hidden files are not, recents come first, the current file is excluded, untitled shows recents only, the empty state, the truncated note, filtering and highlighting, ↑/↓ wrap, Enter/click opens, Esc restores editor focus, pending edits are saved before switching, "Keep editing" on an untitled draft, and a file deleted after listing shows an error. Verify with `npx playwright test --project=chromium`.
 
 ## 6. Docs
 

@@ -21,6 +21,7 @@ import { enterBlockKeymap, headingLines, livePreview } from "./editor/livePrevie
 import { mermaidLanguage } from "./editor/mermaidLanguage";
 import { editorTheme, markdownHighlight } from "./editor/theme";
 import { baseName, resolveRelative } from "./paths";
+import { openQuickOpen, type QuickOpenFiles } from "./quickOpen";
 import { openThemePicker } from "./themePicker";
 import { AUTO, applyThemeVars, resolveTheme } from "./themes";
 
@@ -56,6 +57,25 @@ let fontScale = Number(store.get("fontScale")) || 1;
 const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
 
 const effectiveTheme = (pref = themePref) => resolveTheme(pref, systemDark.matches);
+
+// Recently opened files, most recent first, for quick open.
+const RECENT_LIMIT = 50;
+
+function recentFiles(): string[] {
+  try {
+    const list: unknown = JSON.parse(store.get("recentFiles") ?? "[]");
+    return Array.isArray(list) ? list.filter((p): p is string => typeof p === "string") : [];
+  } catch {
+    return []; // a corrupt value just starts the history over
+  }
+}
+
+function setRecentFiles(list: string[]) {
+  store.set("recentFiles", JSON.stringify(list.slice(0, RECENT_LIMIT)));
+}
+
+const rememberRecent = (path: string) => setRecentFiles([path, ...recentFiles().filter((p) => p !== path)]);
+const forgetRecent = (path: string) => setRecentFiles(recentFiles().filter((p) => p !== path));
 
 // ---------------------------------------------------------------- document state
 
@@ -173,6 +193,7 @@ async function writeNow(path: string | null, force: boolean): Promise<boolean> {
       if (!currentPath) store.set("draft", null);
       currentPath = path;
       store.set("lastFile", path);
+      rememberRecent(path);
       view.dispatch({ effects: pathConfig.reconfigure(docPath.of(path)) });
     }
     diskMtime = mtime;
@@ -265,7 +286,10 @@ function loadDocument(text: string, path: string | null, mtime: number | null = 
   clearTimeout(draftTimer);
   currentPath = path;
   diskMtime = mtime;
-  if (path) store.set("lastFile", path);
+  if (path) {
+    store.set("lastFile", path);
+    rememberRecent(path);
+  }
   view.setState(createState(text, path));
   savedDoc = view.state.doc;
   dirty = false;
@@ -287,6 +311,29 @@ async function openFile() {
   if (!(await readyToLeave())) return;
   const path = await openDialog({ multiple: false, directory: false, filters: MD_FILTER });
   if (typeof path === "string") await openPath(path);
+}
+
+function quickOpen() {
+  openQuickOpen({
+    currentPath,
+    recent: recentFiles(),
+    list: (folder, recent) => invoke<QuickOpenFiles>("quick_open_files", { folder, recent }),
+    open: (path) => void openFromQuickOpen(path),
+    onCancel: () => view.focus(),
+  });
+}
+
+async function openFromQuickOpen(path: string) {
+  // read_file treats a missing file as a new empty one, so check first:
+  // the list may be stale, and the user expects an existing file.
+  if (!(await invoke<boolean>("file_exists", { path }))) {
+    forgetRecent(path);
+    toast(`“${fileName(path)}” no longer exists`, "error");
+    view.focus();
+    return;
+  }
+  if (await readyToLeave()) await openPath(path);
+  else view.focus();
 }
 
 async function newFile() {
@@ -364,6 +411,7 @@ const appKeymap = keymap.of([
   ...enterBlockKeymap,
   { key: "Mod-n", run: run(newFile) },
   { key: "Mod-o", run: run(openFile) },
+  { key: "Mod-p", run: run(quickOpen) },
   { key: "Mod-s", run: run(() => saveFile(false)) },
   { key: "Mod-Shift-s", run: run(() => saveFile(true)) },
   { key: "Mod-b", run: toggleInline("**") },
@@ -460,6 +508,12 @@ const view = new EditorView({
 if (import.meta.env.DEV) (window as unknown as { __marginView: EditorView }).__marginView = view;
 
 // ---------------------------------------------------------------- startup
+
+// Ctrl/Cmd+P is quick open, never the webview's print dialog (WebView2 binds
+// it), even when focus is outside the editor.
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "p") e.preventDefault();
+});
 
 // Links become clickable-looking while Ctrl/Cmd is held.
 const setCtrlHeld = (e: KeyboardEvent | MouseEvent) => document.body.classList.toggle("ctrl-held", e.ctrlKey || e.metaKey);

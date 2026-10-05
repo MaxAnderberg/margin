@@ -491,6 +491,36 @@ body.source-mode #editor .cm-scroller {
   border-top: 1px solid var(--rule);
 }
 
+.palette-match {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Quick open entries: file name, then its folder in quieter text. */
+.palette.quick-open {
+  width: min(100%, 36rem);
+}
+
+.quick-open .palette-item {
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.quick-open-name {
+  flex: none;
+  white-space: nowrap;
+}
+
+.quick-open-location {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* Theme picker entries */
 
 .theme-name {

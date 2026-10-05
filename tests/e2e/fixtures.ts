@@ -22,6 +22,10 @@ export interface MarginOptions {
   home?: string | null;
   /** How many folder files quick open lists before reporting `truncated`. */
   quickOpenLimit?: number;
+  /** Recently opened files remembered from earlier sessions (localStorage). */
+  recent?: string[];
+  /** The path the save dialog answers with; null cancels it. */
+  savePath?: string | null;
 }
 
 declare global {
@@ -33,13 +37,14 @@ declare global {
 }
 
 export async function openMargin(page: Page, options: MarginOptions = {}) {
-  const { files = {}, launch = null, theme, dialogAnswer = false, home = null, quickOpenLimit = 5000 } = options;
+  const { files = {}, launch = null, theme, dialogAnswer = false, home = null, quickOpenLimit = 5000, recent, savePath = null } = options;
   await page.addInitScript(
-    ({ files, launch, theme, dialogAnswer, home, quickOpenLimit }) => {
+    ({ files, launch, theme, dialogAnswer, home, quickOpenLimit, recent, savePath }) => {
       if (!sessionStorage.getItem("test:init")) {
         sessionStorage.setItem("test:init", "1");
         sessionStorage.setItem("test:disk", JSON.stringify(files));
         if (theme) localStorage.setItem("margin.theme", theme);
+        if (recent) localStorage.setItem("margin.recentFiles", JSON.stringify(recent));
       }
       window.__disk = JSON.parse(sessionStorage.getItem("test:disk")!);
       window.__calls = [];
@@ -93,6 +98,8 @@ export async function openMargin(page: Page, options: MarginOptions = {}) {
                 home,
               };
             }
+            case "plugin:dialog|save":
+              return savePath;
             case "plugin:dialog|message": {
               // ask() passes { OkCancelCustom: [ok, cancel] } and compares the result to ok.
               const [ok, cancel] = args.buttons?.OkCancelCustom ?? ["Ok", "Cancel"];
@@ -105,7 +112,7 @@ export async function openMargin(page: Page, options: MarginOptions = {}) {
       };
       (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} };
     },
-    { files, launch, theme, dialogAnswer, home, quickOpenLimit },
+    { files, launch, theme, dialogAnswer, home, quickOpenLimit, recent, savePath },
   );
   await page.goto("/");
   await expect(page.locator(".cm-content")).toBeVisible();
