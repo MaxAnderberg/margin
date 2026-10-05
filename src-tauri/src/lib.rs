@@ -112,6 +112,100 @@ fn file_exists(path: String) -> bool {
     PathBuf::from(path).is_file()
 }
 
+/// The extensions Margin opens (the front end's `MD_FILTER`).
+const MARKDOWN_EXTENSIONS: [&str; 5] = ["md", "markdown", "mdown", "mkd", "txt"];
+
+/// The most files quick open lists from one folder tree.
+const QUICK_OPEN_LIMIT: usize = 5000;
+
+fn is_markdown(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            MARKDOWN_EXTENSIONS
+                .iter()
+                .any(|m| ext.eq_ignore_ascii_case(m))
+        })
+}
+
+#[derive(Serialize, Debug, PartialEq)]
+struct QuickOpenFiles {
+    /// Markdown files under the folder, as absolute paths.
+    files: Vec<String>,
+    /// True when the folder held more files than `QUICK_OPEN_LIMIT`.
+    truncated: bool,
+    /// The recent files that still exist, in the order given.
+    recent: Vec<String>,
+    /// The user's home folder, so the front end can show `~`.
+    home: Option<String>,
+}
+
+/// Lists Markdown files under `folder`, nearest first, up to `limit`.
+///
+/// Skips hidden folders and `node_modules`, and never follows a symlink to a
+/// folder, so a link back up the tree can't loop. Unreadable folders are
+/// skipped rather than failing the whole listing.
+fn list_markdown_files(folder: &Path, limit: usize) -> (Vec<String>, bool) {
+    let mut files = Vec::new();
+    let mut queue = std::collections::VecDeque::from([folder.to_path_buf()]);
+    while let Some(dir) = queue.pop_front() {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        let mut entries: Vec<_> = entries.flatten().collect();
+        entries.sort_by_key(|e| e.file_name());
+        for entry in entries {
+            let path = entry.path();
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            if kind.is_dir() {
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                if !name.starts_with('.') && name != "node_modules" {
+                    queue.push_back(path);
+                }
+            } else if is_markdown(&path) && path.is_file() {
+                // `is_file` follows file symlinks and drops dangling ones.
+                if files.len() == limit {
+                    return (files, true);
+                }
+                files.push(path.to_string_lossy().into_owned());
+            }
+        }
+    }
+    (files, false)
+}
+
+fn quick_open_listing(folder: Option<&Path>, recent: Vec<String>, limit: usize) -> QuickOpenFiles {
+    let (files, truncated) = folder
+        .map(|f| list_markdown_files(f, limit))
+        .unwrap_or_default();
+    QuickOpenFiles {
+        files,
+        truncated,
+        recent: recent
+            .into_iter()
+            .filter(|p| Path::new(p).is_file())
+            .collect(),
+        home: std::env::home_dir().map(|h| h.to_string_lossy().into_owned()),
+    }
+}
+
+/// Everything the quick open palette lists, in one round trip. Runs off the
+/// main thread so a slow or huge folder can't freeze the window.
+#[tauri::command]
+async fn quick_open_files(
+    folder: Option<String>,
+    recent: Vec<String>,
+) -> Result<QuickOpenFiles, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        quick_open_listing(folder.as_deref().map(Path::new), recent, QUICK_OPEN_LIMIT)
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 fn resolve_launch_file() -> Option<String> {
     let arg = std::env::args().skip(1).find(|a| !a.starts_with('-'))?;
     let path = PathBuf::from(arg);
@@ -134,7 +228,8 @@ pub fn run() {
             read_file,
             file_mtime,
             write_file,
-            file_exists
+            file_exists,
+            quick_open_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running Margin");
@@ -233,6 +328,103 @@ mod tests {
             0o600
         );
         assert!(!dir.join(".real.md.margin-tmp").exists());
+    }
+
+    /// Creates `rel` (and its folders) under `dir` with some text.
+    fn touch(dir: &Path, rel: &str) -> String {
+        let path = dir.join(rel);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, "x").unwrap();
+        path.to_string_lossy().into_owned()
+    }
+
+    fn listed(dir: &Path) -> Vec<String> {
+        let (files, _) = list_markdown_files(dir, QUICK_OPEN_LIMIT);
+        let prefix = format!("{}/", dir.to_string_lossy());
+        files
+            .iter()
+            .map(|f| f.strip_prefix(&prefix).unwrap().to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn quick_open_lists_nested_markdown_nearest_first() {
+        let dir = scratch("qo-nested");
+        touch(&dir, "ideas/deep/c.md");
+        touch(&dir, "ideas/b.markdown");
+        touch(&dir, "a.md");
+        touch(&dir, "Notes.TXT");
+        assert_eq!(
+            listed(&dir),
+            ["Notes.TXT", "a.md", "ideas/b.markdown", "ideas/deep/c.md"]
+        );
+    }
+
+    #[test]
+    fn quick_open_ignores_other_files() {
+        let dir = scratch("qo-other");
+        touch(&dir, "a.md");
+        touch(&dir, "photo.png");
+        touch(&dir, "script.js");
+        touch(&dir, "README");
+        assert_eq!(listed(&dir), ["a.md"]);
+    }
+
+    #[test]
+    fn quick_open_skips_hidden_and_dependency_folders() {
+        let dir = scratch("qo-hidden");
+        touch(&dir, "a.md");
+        touch(&dir, ".git/notes.md");
+        touch(&dir, "sub/.cache/x.md");
+        touch(&dir, "node_modules/pkg/README.md");
+        assert_eq!(listed(&dir), ["a.md"]);
+    }
+
+    #[test]
+    fn quick_open_survives_a_symlink_loop() {
+        let dir = scratch("qo-loop");
+        touch(&dir, "sub/a.md");
+        std::os::unix::fs::symlink(&dir, dir.join("sub/up")).unwrap();
+        // A link to a file is listed; one to a missing file is not.
+        std::os::unix::fs::symlink(dir.join("sub/a.md"), dir.join("link.md")).unwrap();
+        std::os::unix::fs::symlink(dir.join("gone.md"), dir.join("dangling.md")).unwrap();
+        assert_eq!(listed(&dir), ["link.md", "sub/a.md"]);
+    }
+
+    #[test]
+    fn quick_open_stops_at_the_limit() {
+        let dir = scratch("qo-limit");
+        for i in 0..5 {
+            touch(&dir, &format!("{i}.md"));
+        }
+        let (files, truncated) = list_markdown_files(&dir, 3);
+        assert_eq!(files.len(), 3);
+        assert!(truncated);
+        let (files, truncated) = list_markdown_files(&dir, 5);
+        assert_eq!(files.len(), 5);
+        assert!(!truncated);
+    }
+
+    #[test]
+    fn quick_open_drops_deleted_recents_and_keeps_order() {
+        let dir = scratch("qo-recent");
+        let b = touch(&dir, "b.md");
+        let a = touch(&dir, "a.md");
+        let gone = dir.join("gone.md").to_string_lossy().into_owned();
+        let result = quick_open_listing(None, vec![b.clone(), gone, a.clone()], 10);
+        assert_eq!(result.recent, [b, a]);
+        assert!(result.files.is_empty());
+        assert!(!result.truncated);
+    }
+
+    #[test]
+    fn quick_open_without_a_folder_lists_only_recents() {
+        let dir = scratch("qo-untitled");
+        touch(&dir, "other.md");
+        let a = touch(&dir, "a.md");
+        let result = quick_open_listing(None, vec![a.clone()], 10);
+        assert!(result.files.is_empty());
+        assert_eq!(result.recent, [a]);
     }
 
     #[test]

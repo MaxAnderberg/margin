@@ -18,6 +18,10 @@ export interface MarginOptions {
   theme?: string;
   /** How dialogs are answered: true clicks the OK button, false Cancel. */
   dialogAnswer?: boolean;
+  /** The home folder quick open shortens to `~`. */
+  home?: string | null;
+  /** How many folder files quick open lists before reporting `truncated`. */
+  quickOpenLimit?: number;
 }
 
 declare global {
@@ -29,9 +33,9 @@ declare global {
 }
 
 export async function openMargin(page: Page, options: MarginOptions = {}) {
-  const { files = {}, launch = null, theme, dialogAnswer = false } = options;
+  const { files = {}, launch = null, theme, dialogAnswer = false, home = null, quickOpenLimit = 5000 } = options;
   await page.addInitScript(
-    ({ files, launch, theme, dialogAnswer }) => {
+    ({ files, launch, theme, dialogAnswer, home, quickOpenLimit }) => {
       if (!sessionStorage.getItem("test:init")) {
         sessionStorage.setItem("test:init", "1");
         sessionStorage.setItem("test:disk", JSON.stringify(files));
@@ -66,6 +70,29 @@ export async function openMargin(page: Page, options: MarginOptions = {}) {
               window.__disk[args.path] = { text: args.contents, mtime: ++clock };
               persist();
               return clock;
+            case "quick_open_files": {
+              // Mirrors the Rust listing: Markdown files under the folder,
+              // skipping hidden folders and node_modules, nearest first.
+              const isMarkdown = (p: string) => /\.(md|markdown|mdown|mkd|txt)$/i.test(p);
+              const folder: string | null = args.folder;
+              const under = folder
+                ? Object.keys(window.__disk)
+                    .filter((p) => p.startsWith(folder + "/") || p.startsWith(folder + "\\"))
+                    .map((p) => ({ p, parts: p.slice(folder.length + 1).split(/[\\/]/) }))
+                    .filter(({ p, parts }) => {
+                      const dirs = parts.slice(0, -1);
+                      return isMarkdown(p) && !dirs.some((d) => d.startsWith(".") || d === "node_modules");
+                    })
+                    .sort((a, b) => a.parts.length - b.parts.length || (a.p < b.p ? -1 : 1))
+                    .map(({ p }) => p)
+                : [];
+              return {
+                files: under.slice(0, quickOpenLimit),
+                truncated: under.length > quickOpenLimit,
+                recent: (args.recent as string[]).filter((p) => window.__disk[p]),
+                home,
+              };
+            }
             case "plugin:dialog|message": {
               // ask() passes { OkCancelCustom: [ok, cancel] } and compares the result to ok.
               const [ok, cancel] = args.buttons?.OkCancelCustom ?? ["Ok", "Cancel"];
@@ -78,7 +105,7 @@ export async function openMargin(page: Page, options: MarginOptions = {}) {
       };
       (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} };
     },
-    { files, launch, theme, dialogAnswer },
+    { files, launch, theme, dialogAnswer, home, quickOpenLimit },
   );
   await page.goto("/");
   await expect(page.locator(".cm-content")).toBeVisible();

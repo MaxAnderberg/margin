@@ -2,9 +2,9 @@
 
 ## 1. Backend: list files for quick open
 
-- [ ] 1.1 Add the async `quick_open_files(folder, recent)` command to `src-tauri/src/lib.rs`. It walks Markdown files (same extensions as `MD_FILTER`), skips `.`-folders and `node_modules`, doesn't follow directory symlinks, caps at 5,000 with `truncated`, filters `recent` to existing files and returns `home`. Register it in `generate_handler!`. Verify with `cargo build`.
-- [ ] 1.2 Add `cargo test` cases for: nested files found, non-Markdown files ignored, hidden and `node_modules` folders skipped, a symlink loop terminates, the cap sets `truncated`, deleted recents dropped, and `folder = None` returning only recents. Verify that `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` passes.
-- [ ] 1.3 Add a `quick_open_files` fake to `tests/e2e/fixtures.ts` that derives the listing from the simulated disk (prefix match on the folder, same skip rules) and supports a `truncated` override. Verify that the existing e2e suite still passes.
+- [x] 1.1 Add the async `quick_open_files(folder, recent)` command to `src-tauri/src/lib.rs`. It walks Markdown files (same extensions as `MD_FILTER`), skips `.`-folders and `node_modules`, doesn't follow directory symlinks, caps at 5,000 with `truncated`, filters `recent` to existing files and returns `home`. Register it in `generate_handler!`. Verify with `cargo build`.
+- [x] 1.2 Add `cargo test` cases for: nested files found, non-Markdown files ignored, hidden and `node_modules` folders skipped, a symlink loop terminates, the cap sets `truncated`, deleted recents dropped, and `folder = None` returning only recents. Verify that `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` passes.
+- [x] 1.3 Add a `quick_open_files` fake to `tests/e2e/fixtures.ts` that derives the listing from the simulated disk (prefix match on the folder, same skip rules) and supports a `truncated` override. Verify that the existing e2e suite still passes.
 
 ## 2. Path display and fuzzy matching
 
