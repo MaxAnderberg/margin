@@ -36,6 +36,6 @@
 
 ## 7. Integration checks
 
-- [ ] 7.1 Run the full local gate: `npm run check`, `npx playwright test --project=chromium`, and the cargo fmt, clippy and test commands. All green.
+- [x] 7.1 Run the full local gate: `npm run check`, `npx playwright test --project=chromium`, and the cargo fmt, clippy and test commands. All green.
 - [ ] 7.2 Smoke test the installed build (`./install.sh`): open a file in a real notes folder, use `Ctrl+P` to switch files several times, and confirm the recents survive a restart.
 - [ ] 7.3 After CI builds the Windows installer for the PR, confirm on Windows that `Ctrl+P` doesn't print and that `C:\…` locations display and open correctly. If no Windows machine is available, note it in the PR.
