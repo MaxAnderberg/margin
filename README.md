@@ -65,14 +65,14 @@ In dev mode the app runs from `src-tauri/`, so pass an absolute path. The three 
 npm run check                          # type-check + unit and pipeline tests (Vitest, ~1 s)
 npx playwright test                    # browser tests against the dev server
 npx playwright test --project=chromium # …Chromium only (WebKit needs Ubuntu/Debian libraries)
-cd src-tauri && cargo test             # Rust: saving, conflicts, permissions, symlinks
+cd src-tauri && cargo test             # Rust: saving, conflicts, permissions, symlinks, folder listing
 ```
 
 | Folder | What it covers |
 | --- | --- |
-| `tests/unit/` | Live preview (what's hidden where), formatting commands, Mermaid highlighting, paths, theme colors and contrast |
+| `tests/unit/` | Live preview (what's hidden where), formatting commands, Mermaid highlighting, paths, quick open matching, theme colors and contrast |
 | `tests/release/` | The release pipeline: matching version numbers, release-please settings, and how the workflows fit together |
-| `tests/e2e/` | The app in a real browser, with a simulated disk in place of the Rust backend: rendering, diagrams, shortcuts, autosave, conflicts, drafts, every theme, the theme picker |
+| `tests/e2e/` | The app in a real browser, with a simulated disk in place of the Rust backend: rendering, diagrams, shortcuts, autosave, conflicts, drafts, every theme, the theme picker, quick open |
 
 CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus `cargo fmt`, `clippy` and [actionlint](https://github.com/rhysd/actionlint) for the workflow files. The browser tests run in both Chromium and WebKit, the engine Margin uses on Linux and macOS. The first time you run them, use `npx playwright install chromium webkit`.
 
@@ -81,6 +81,7 @@ CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus `c
 | Keys | Action |
 | --- | --- |
 | `Ctrl+N` / `Ctrl+O` | New / open |
+| `Ctrl+P` | Quick open: recent files and Markdown files in this folder |
 | `Ctrl+S` / `Ctrl+Shift+S` | Save / save as |
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+E` | Bold / italic / inline code |
 | `Ctrl+Shift+X` | Strikethrough |
@@ -97,6 +98,10 @@ CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus `c
 | `Ctrl+click` | Open link |
 
 You can also drop a `.md` file onto the window to open it.
+
+### Quick open
+
+Press `Ctrl+P` and type a few letters of a file name to switch to it. The list holds the files you opened recently, newest first, and the Markdown files in the open file's folder and its subfolders. Letters only need to appear in order, so `qkop` finds `quick-open.md`. Hidden folders and `node_modules` are skipped.
 
 ## Themes
 
@@ -122,7 +127,7 @@ Press `Ctrl+Shift+L` to open the picker. Arrow keys preview each theme live and 
 ## Layout
 
 ```
-src-tauri/src/lib.rs        Rust: file read, conflict-checked atomic write, CLI argument (tests: cargo test)
+src-tauri/src/lib.rs        Rust: file read, conflict-checked atomic write, folder listing, CLI argument (tests: cargo test)
 src/main.ts                 App wiring: files, shortcuts, theme, title
 src/editor/livePreview.ts   Hides syntax and renders widgets away from the cursor
 src/editor/commands.ts      Formatting commands
@@ -130,7 +135,10 @@ src/editor/mermaid.ts       Lazy, cached Mermaid rendering in the theme's colors
 src/editor/mermaidLanguage.ts  Syntax highlighting for Mermaid source
 src/editor/theme.ts         Syntax colors and editor chrome
 src/themes.ts               The color themes
+src/palette.ts              The filter-and-pick popup both pickers share
 src/themePicker.ts          Ctrl+Shift+L theme picker
+src/quickOpen.ts            Ctrl+P quick open
+src/fuzzy.ts                Fuzzy matching and ranking for quick open
 src/styles.css              Typography, layout, margin labels
 examples/welcome.md         A tour of what renders
 docs/screenshots/           Images used in this README

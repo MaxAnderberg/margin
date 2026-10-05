@@ -32,7 +32,7 @@
 
 ## 6. Docs
 
-- [ ] 6.1 Add `Ctrl+P` (Quick open: recent files and Markdown files in this folder) to the README Keyboard table, and `src/palette.ts`, `src/quickOpen.ts` and `src/fuzzy.ts` to the Layout section. Check that the README renders.
+- [x] 6.1 Add `Ctrl+P` (Quick open: recent files and Markdown files in this folder) to the README Keyboard table, and `src/palette.ts`, `src/quickOpen.ts` and `src/fuzzy.ts` to the Layout section. Check that the README renders.
 
 ## 7. Integration checks
 
