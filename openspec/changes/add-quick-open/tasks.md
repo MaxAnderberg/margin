@@ -14,8 +14,8 @@
 
 ## 3. Shared palette shell
 
-- [ ] 3.1 Extract `src/palette.ts` from `src/themePicker.ts`. It holds the backdrop, input, listbox, ↑/↓/`Ctrl+N`/`Ctrl+P` with wrapping, Enter, Esc, outside-click and scroll-into-view, plus a way to replace items after opening. Rename the shared CSS in `src/styles.css` to `.palette*`.
-- [ ] 3.2 Rebuild `themePicker.ts` on the shell, keeping live preview and revert. Verify that the theme-picker tests in `tests/e2e/themes.spec.ts` pass (`npx playwright test --project=chromium`), updating selectors only.
+- [x] 3.1 Extract `src/palette.ts` from `src/themePicker.ts`. It holds the backdrop, input, listbox, ↑/↓/`Ctrl+N`/`Ctrl+P` with wrapping, Enter, Esc, outside-click and scroll-into-view, plus a way to replace items after opening. Rename the shared CSS in `src/styles.css` to `.palette*`.
+- [x] 3.2 Rebuild `themePicker.ts` on the shell, keeping live preview and revert. Verify that the theme-picker tests in `tests/e2e/themes.spec.ts` pass (`npx playwright test --project=chromium`), updating selectors only.
 
 ## 4. Recent files
 

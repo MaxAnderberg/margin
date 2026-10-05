@@ -75,8 +75,8 @@ test.describe("theme picker", () => {
   });
 
   test("lists every theme plus Auto, marking the current one", async ({ page }) => {
-    await expect(page.locator(".theme-picker-item")).toHaveCount(THEMES.length + 1);
-    await expect(page.locator(".theme-picker-item", { hasText: "current" })).toContainText("Margin Light");
+    await expect(page.locator(".palette-item")).toHaveCount(THEMES.length + 1);
+    await expect(page.locator(".palette-item", { hasText: "current" })).toContainText("Margin Light");
   });
 
   test("arrow keys preview themes live; Escape restores the original", async ({ page }) => {
@@ -89,7 +89,7 @@ test.describe("theme picker", () => {
 
   test("typing filters by every word; Enter keeps the choice across restarts", async ({ page }) => {
     await page.keyboard.type("gruv dark");
-    await expect(page.locator(".theme-picker-item")).toHaveCount(1);
+    await expect(page.locator(".palette-item")).toHaveCount(1);
     await page.keyboard.press("Enter");
     expect(await themeId(page)).toBe("gruvbox-dark");
     await page.reload();

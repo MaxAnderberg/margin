@@ -420,9 +420,9 @@ body.source-mode #editor .cm-scroller {
   color: #fff;
 }
 
-/* ---------------------------------------------------------------- theme picker */
+/* ---------------------------------------------------------------- palettes (theme picker, quick open) */
 
-.theme-picker-backdrop {
+.palette-backdrop {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -432,7 +432,7 @@ body.source-mode #editor .cm-scroller {
   padding: 12vh 16px 0;
 }
 
-.theme-picker {
+.palette {
   width: min(100%, 26rem);
   background: var(--panel);
   color: var(--text);
@@ -444,7 +444,7 @@ body.source-mode #editor .cm-scroller {
   font-size: 14px;
 }
 
-.theme-picker-input {
+.palette-input {
   width: 100%;
   border: none;
   border-bottom: 1px solid var(--rule);
@@ -456,11 +456,11 @@ body.source-mode #editor .cm-scroller {
   outline: none;
 }
 
-.theme-picker-input::placeholder {
+.palette-input::placeholder {
   color: var(--faint-text);
 }
 
-.theme-picker-list {
+.palette-list {
   list-style: none;
   margin: 0;
   padding: 0.35rem;
@@ -468,7 +468,7 @@ body.source-mode #editor .cm-scroller {
   overflow-y: auto;
 }
 
-.theme-picker-item {
+.palette-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -477,9 +477,21 @@ body.source-mode #editor .cm-scroller {
   cursor: pointer;
 }
 
-.theme-picker-item.is-active {
+.palette-item.is-active {
   background: var(--selection);
 }
+
+.palette-message {
+  padding: 0.6rem 1rem 0.7rem;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.palette-list:not([hidden]) + .palette-message {
+  border-top: 1px solid var(--rule);
+}
+
+/* Theme picker entries */
 
 .theme-name {
   flex: 1;
