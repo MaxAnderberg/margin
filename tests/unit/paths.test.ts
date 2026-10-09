@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseName, isAbsolute, resolveRelative } from "../../src/paths";
+import { baseName, dirName, displayFolder, isAbsolute, relativeTo, resolveRelative } from "../../src/paths";
 
 describe("resolveRelative", () => {
   it.each([
@@ -28,5 +28,44 @@ describe("isAbsolute", () => {
     expect(isAbsolute("D:/x.png")).toBe(true);
     expect(isAbsolute("C:\\x.png")).toBe(true);
     expect(isAbsolute("img/x.png")).toBe(false);
+  });
+});
+
+describe("dirName", () => {
+  it("handles both separators", () => {
+    expect(dirName("/home/max/a.md")).toBe("/home/max");
+    expect(dirName("C:\\Users\\max\\a.md")).toBe("C:\\Users\\max");
+    expect(dirName("a.md")).toBe("");
+  });
+});
+
+describe("relativeTo", () => {
+  it.each([
+    ["/notes", "/notes/a.md", "a.md"],
+    ["/notes", "/notes/ideas/c.md", "ideas/c.md"],
+    ["/notes/", "/notes/ideas/c.md", "ideas/c.md"],
+    ["/notes", "/notes-old/a.md", null],
+    ["/notes", "/other/a.md", null],
+    ["C:\\Users\\max\\notes", "C:\\Users\\max\\notes\\ideas\\c.md", "ideas\\c.md"],
+    ["C:\\Users\\max\\notes", "c:\\users\\MAX\\notes\\a.md", "a.md"],
+    ["C:\\Users\\max\\notes", "C:\\Users\\max\\notes2\\a.md", null],
+  ])("%s ∋ %s", (folder, path, expected) => {
+    expect(relativeTo(folder, path)).toBe(expected);
+  });
+});
+
+describe("displayFolder", () => {
+  it.each([
+    ["/home/max/work/plan.md", "/home/max", "~/work"],
+    ["/home/max/plan.md", "/home/max", "~"],
+    ["/home/max/plan.md", "/home/max/", "~"],
+    ["/home/maxine/plan.md", "/home/max", "/home/maxine"],
+    ["/srv/notes/plan.md", "/home/max", "/srv/notes"],
+    ["/srv/notes/plan.md", null, "/srv/notes"],
+    ["/plan.md", "/home/max", "/"],
+    ["C:\\Users\\max\\notes\\todo.md", "C:\\Users\\max", "~\\notes"],
+    ["D:\\notes\\todo.md", "C:\\Users\\max", "D:\\notes"],
+  ])("%s (home %s)", (path, home, expected) => {
+    expect(displayFolder(path, home)).toBe(expected);
   });
 });
