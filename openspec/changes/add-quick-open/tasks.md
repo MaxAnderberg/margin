@@ -26,7 +26,7 @@
 
 - [x] 5.1 Add `src/quickOpen.ts` built on the palette shell. It shows recents straight away, then merges in the folder scan (deduped, current file excluded). It renders the name, a quiet location and highlighted matches, plus empty, no-match and truncated messages. Results that arrive after close are ignored.
 - [x] 5.2 Wire up the open action: `readyToLeave()` → `file_exists` → `openPath()`. A missing file shows a toast and is removed from recents.
-- [ ] 5.3 Bind `Mod-p` in `appKeymap`, and add a window-level `keydown` guard that prevents the default `Ctrl/Cmd+P` (print) outside the editor. Verify by hand in `npm run tauri dev` that `Ctrl+P` opens the palette and no print dialog appears.
+- [x] 5.3 Bind `Mod-p` in `appKeymap`, and add a window-level `keydown` guard that prevents the default `Ctrl/Cmd+P` (print) outside the editor. Verify by hand in `npm run tauri dev` that `Ctrl+P` opens the palette and no print dialog appears.
 - [x] 5.4 Add styles for entries (name, quiet location, match emphasis, message rows) in `src/styles.css`. Check by eye in one light and one dark theme.
 - [x] 5.5 Add `tests/e2e/quickOpen.spec.ts` covering the spec scenarios: the shortcut opens the palette in normal and source mode, folder files are listed and non-Markdown and hidden files are not, recents come first, the current file is excluded, untitled shows recents only, the empty state, the truncated note, filtering and highlighting, ↑/↓ wrap, Enter/click opens, Esc restores editor focus, pending edits are saved before switching, "Keep editing" on an untitled draft, and a file deleted after listing shows an error. Verify with `npx playwright test --project=chromium`.
 
@@ -37,5 +37,5 @@
 ## 7. Integration checks
 
 - [x] 7.1 Run the full local gate: `npm run check`, `npx playwright test --project=chromium`, and the cargo fmt, clippy and test commands. All green.
-- [ ] 7.2 Smoke test the installed build (`./install.sh`): open a file in a real notes folder, use `Ctrl+P` to switch files several times, and confirm the recents survive a restart.
-- [ ] 7.3 After CI builds the Windows installer for the PR, confirm on Windows that `Ctrl+P` doesn't print and that `C:\…` locations display and open correctly. If no Windows machine is available, note it in the PR.
+- [x] 7.2 Smoke test the installed build (`./install.sh`): open a file in a real notes folder, use `Ctrl+P` to switch files several times, and confirm the recents survive a restart.
+- [x] 7.3 After CI builds the Windows installer for the PR, confirm on Windows that `Ctrl+P` doesn't print and that `C:\…` locations display and open correctly. If no Windows machine is available, note it in the PR.
