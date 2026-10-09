@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/MaxAnderberg/margin/compare/v0.1.1...v0.2.0) (2026-10-09)
+
+
+### Features
+
+* quick open files with Ctrl+P ([d43661e](https://github.com/MaxAnderberg/margin/commit/d43661ef563eccebb7b17ebe5a2aae2356f9cb68))
+* quick open files with Ctrl+P ([04f5473](https://github.com/MaxAnderberg/margin/commit/04f5473b65fd8edba9da91c9a7b129e99e1f3ade))
+
 ## [0.1.1](https://github.com/MaxAnderberg/margin/compare/v0.1.0...v0.1.1) (2026-10-01)
 
 
